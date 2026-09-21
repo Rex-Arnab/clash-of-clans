@@ -1,0 +1,51 @@
+# --- Python ---------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
+
+# --- OS / editor ------------------------------------------------------------
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# --- Local tool state and backups ------------------------------------------
+.hive/
+.bak_*/
+*.bak
+*.edited
+.env
+.env.*
+
+# --- Generated run output (coc/report.py prunes it; never hand-edited) -------
+runs/
+
+# --- Ad-hoc screenshots, not read by any code --------------------------------
+captures/
+/coc_remote.png
+
+# --- Live-run evidence and large datasets (GB-scale frames) ------------------
+# The battle gates (scratchpad/test_battle_clock.py, test_spots.py, replay_*.py,
+# bb/test_bb.py) read frames from these dirs, so they must exist locally.
+scratchpad/battles/
+scratchpad/bb/battles/
+scratchpad/farm/
+scratchpad/capsprobe/
+scratchpad/runs/
+scratchpad/yolo_survey/eval/
+scratchpad/yolo_survey/live_*/
+scratchpad/yolo_survey/grade/
+scratchpad/yolo_survey/bench_out/
+scratchpad/yolo_survey/weights/
+scratchpad/STOP
+*.log
+*.out
+nohup.out
+
+# --- Android build byproducts -------------------------------------------------
+*.dex

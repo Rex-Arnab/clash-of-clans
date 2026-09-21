@@ -1,0 +1,44 @@
+{
+  "coc_version": "18.600.1",
+  "screen": [
+    2392,
+    1080
+  ],
+  "orientation": "landscape",
+  "density": 360,
+  "capture_source": "screencap",
+  "cut_date": "2026-09-05",
+  "templates": {
+    "loot_bubble": {
+      "file": "loot_bubble.png",
+      "mask": "loot_bubble_mask.png",
+      "method": "TM_SQDIFF_NORMED",
+      "threshold": 0.15,
+      "note": "Ring mask excludes the interior icon so gold/elixir/dark bubbles all match the shared frame; interior hue then classifies the type.",
+      "measured": {
+        "self": 0.0,
+        "other_elixir": [
+          0.088,
+          0.109
+        ],
+        "gold": 0.133,
+        "dark": [
+          0.133,
+          0.143
+        ],
+        "first_false_positive": 0.196
+      }
+    },
+    "dlg_reload_game": {
+      "file": "dlg_reload_game.png",
+      "mask": null,
+      "method": "TM_SQDIFF_NORMED",
+      "threshold": 0.1,
+      "tap_offset": [
+        94,
+        25
+      ],
+      "note": "CoC drops the session on inactivity and shows 'Anyone there? ... Reload game'. Because the game idles between scheduled runs this appears on nearly every run, so recovery from it is part of the normal path, not an edge case."
+    }
+  }
+}

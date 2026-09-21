@@ -1,0 +1,171 @@
+{
+ "_note": "Graded by cropping every box at native resolution (2026-09-17). 'true' lists every box the detector returned at >= 0.25 that IS that building; everything else it returned was false (timer text, UI cards, a Scattershot, a banner). conf is from the grading run.",
+ "home_live_20260917.png": {
+  "true": [
+   {
+    "label": "air_defense",
+    "centre": [
+     1039,
+     799
+    ],
+    "conf": 0.901
+   },
+   {
+    "label": "air_defense",
+    "centre": [
+     817,
+     385
+    ],
+    "conf": 0.898
+   },
+   {
+    "label": "air_defense",
+    "centre": [
+     1279,
+     220
+    ],
+    "conf": 0.895
+   },
+   {
+    "label": "air_defense",
+    "centre": [
+     1665,
+     623
+    ],
+    "conf": 0.887
+   },
+   {
+    "label": "x_bow",
+    "centre": [
+     1540,
+     369
+    ],
+    "conf": 0.884
+   },
+   {
+    "label": "x_bow",
+    "centre": [
+     1037,
+     242
+    ],
+    "conf": 0.881
+   },
+   {
+    "label": "x_bow",
+    "centre": [
+     1380,
+     749
+    ],
+    "conf": 0.874
+   },
+   {
+    "label": "x_bow",
+    "centre": [
+     871,
+     619
+    ],
+    "conf": 0.869
+   },
+   {
+    "label": "inferno_tower",
+    "centre": [
+     1401,
+     368
+    ],
+    "conf": 0.862
+   },
+   {
+    "label": "inferno_tower",
+    "centre": [
+     963,
+     507
+    ],
+    "conf": 0.8
+   },
+   {
+    "label": "inferno_tower",
+    "centre": [
+     1297,
+     770
+    ],
+    "conf": 0.751
+   }
+  ]
+ },
+ "enemy_scout_20260912.png": {
+  "true": [
+   {
+    "label": "air_defense",
+    "centre": [
+     1027,
+     266
+    ],
+    "conf": 0.909
+   },
+   {
+    "label": "air_defense",
+    "centre": [
+     858,
+     572
+    ],
+    "conf": 0.901
+   },
+   {
+    "label": "air_defense",
+    "centre": [
+     1388,
+     282
+    ],
+    "conf": 0.889
+   },
+   {
+    "label": "air_defense",
+    "centre": [
+     1533,
+     608
+    ],
+    "conf": 0.804
+   },
+   {
+    "label": "x_bow",
+    "centre": [
+     1795,
+     506
+    ],
+    "conf": 0.894
+   },
+   {
+    "label": "x_bow",
+    "centre": [
+     632,
+     506
+    ],
+    "conf": 0.805
+   },
+   {
+    "label": "inferno_tower",
+    "centre": [
+     1000,
+     701
+    ],
+    "conf": 0.88
+   },
+   {
+    "label": "inferno_tower",
+    "centre": [
+     1244,
+     520
+    ],
+    "conf": 0.803
+   },
+   {
+    "label": "inferno_tower",
+    "centre": [
+     1459,
+     687
+    ],
+    "conf": 0.751
+   }
+  ]
+ }
+}

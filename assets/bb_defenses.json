@@ -1,0 +1,512 @@
+{
+  "_schema": "Builder Base defences. targets/range_tiles null means unconfirmed; never guess.",
+  "_source": "clashofclans.fandom.com Builder Base defences index + per-defence stat blocks",
+  "_why": "Baby Dragons are AIR (hit by air/both). Battle Machine is GROUND (hit by ground/both). BM survival was measured to decide the run: see TODO.md r5-r7.",
+  "defences": {
+    "cannon": {
+      "targets": "ground",
+      "range_tiles": 9,
+      "size_tiles": "3x3",
+      "damage_type": "single",
+      "attack_speed_s": 0.8,
+      "_source_caveat": "Stats taken from the HOME VILLAGE Cannon page, not the Builder Base one. 'Ground only' is safe (no Cannon variant in CoC targets air), but BB range and per-BH counts are UNCONFIRMED for the Builder Base.",
+      "range_tiles_confirmed_for_bb": false,
+      "count_per_bh_confirmed": false,
+      "note": "Ground only -- dragons immune."
+    },
+    "double_cannon": {
+      "targets": "ground",
+      "range_tiles": 7,
+      "damage_type": "single",
+      "attack_speed_s": 0.1555,
+      "shots_per_burst": 4,
+      "dps_max": 220,
+      "max_level": 10
+    },
+    "archer_tower": {
+      "targets": "both",
+      "modes": {
+        "long_range": {
+          "range_tiles": 10,
+          "attack_speed_s": 1.0
+        },
+        "fast_attack": {
+          "range_tiles": 7,
+          "attack_speed_s": 0.5
+        }
+      },
+      "range_tiles_assume_worst": 10,
+      "size_tiles": "3x3",
+      "damage_type": "single",
+      "hp_range": [
+        500,
+        1850
+      ],
+      "dps_range": [
+        40,
+        94
+      ],
+      "max_level": 10,
+      "count_bh2_3": 1,
+      "count_bh4_5": 2,
+      "count_bh6_10": 3,
+      "unlocks_bh": 2,
+      "visual_mode_cue": "Fast Attack mode LOWERS the whole tower so only the top is visible; Long Range stands full height.",
+      "note": "Targets BOTH air and ground in EITHER mode -- unlike the X-Bow, the mode changes only range/speed (10 tiles slow vs 7 tiles fast), never what it can hit. So targeting is safe to classify statically; assume 10 tiles when the mode is unclear. THREE per base at BH6+, the most numerous defence in the Builder Base."
+    },
+    "hidden_tesla": {
+      "targets": "both",
+      "range_tiles": 7,
+      "trigger_range_tiles": 6,
+      "size_tiles": "2x2",
+      "damage_type": "single",
+      "attack_speed_s": 0.6,
+      "hp_range": [
+        300,
+        1150
+      ],
+      "dmg_per_shot": [
+        36,
+        85
+      ],
+      "dps_range": [
+        60,
+        141
+      ],
+      "max_level": 10,
+      "count_bh3_5": 1,
+      "count_bh6": 2,
+      "count_bh7_10": 3,
+      "unlocks_bh": 3,
+      "invisible_until_triggered": true,
+      "note": "INVISIBLE to the attacker until a unit comes within 6 tiles, or automatically once 51% of the stage is destroyed. NO classifier can see it in a pre-battle frame -- this is a hard limit on pixel-based perception. Up to 3 per base at BH7+, and it hits BOTH air and ground."
+    },
+    "firecrackers": {
+      "targets": "air",
+      "range_tiles": 9,
+      "size_tiles": "2x2",
+      "damage_type": "single",
+      "attack_speed": "3 shots every 0.8s",
+      "hp_range": [
+        400,
+        1500
+      ],
+      "dps_range": [
+        59,
+        137
+      ],
+      "max_level": 10,
+      "count_at_bh10": 5,
+      "unlocks_bh": 3,
+      "note": "CANNOT harm ground units at all -- the Battle Machine is immune to it. Low HP. Clustered Firecrackers are the prime Fiery Sneeze target."
+    },
+    "crusher": {
+      "targets": "ground",
+      "range_tiles": 2.3,
+      "size_tiles": "3x3",
+      "damage_type": "area splash 2.8 tiles, centred on the Crusher itself",
+      "attack_speed_s": 3.5,
+      "hp_range": [
+        1000,
+        2900
+      ],
+      "dmg_per_hit": [
+        438,
+        1036
+      ],
+      "dps_range": [
+        125,
+        296
+      ],
+      "max_level": 10,
+      "count_bh3_5": 1,
+      "count_bh6_10": 2,
+      "unlocks_bh": 3,
+      "note": "CANNOT hit air -- Baby Dragons are completely immune. Highest damage per hit of any BB defence. Range is only 2.3 tiles (~87 px), so it is easy to route the Battle Machine around."
+    },
+    "guard_post": {
+      "targets": "none_direct",
+      "size_tiles": "2x2",
+      "hp_range": [
+        300,
+        1150
+      ],
+      "max_level": 10,
+      "count_any_bh": 1,
+      "unlocks_bh": 4,
+      "spawns": [
+        {
+          "unit": "raged_barbarian",
+          "count": 1,
+          "can_hit_air": false
+        },
+        {
+          "unit": "sneaky_archer",
+          "count": 1,
+          "can_hit_air": true
+        }
+      ],
+      "note": "Building itself does not shoot. Its 2 troops are ALREADY OUT roaming before the battle starts, and respawn free every battle. Raged Barbarian cannot target air, so only the Sneaky Archer threatens dragons -- but BOTH can stall the Battle Machine."
+    },
+    "air_bombs": {
+      "targets": "air",
+      "range_tiles": 7.5,
+      "size_tiles": "3x3",
+      "damage_type": "area splash 1.5 tiles",
+      "attack_speed_s": 3.0,
+      "hp_range": [
+        1000,
+        2900
+      ],
+      "dmg_per_hit": [
+        270,
+        636
+      ],
+      "max_level": 10,
+      "count_any_bh": 1,
+      "unlocks_bh": 4,
+      "note": "Air only; ground units are immune. Exactly ONE per base at every BH level, so it is a single avoidable point threat. Splash radius is only 1.5 tiles, so Tantrum spacing (4.5 tiles) already prevents it hitting two dragons at once."
+    },
+    "multi_mortar": {
+      "targets": "ground",
+      "range_tiles": [
+        4,
+        11
+      ],
+      "min_range_tiles": 4,
+      "size_tiles": "3x3",
+      "damage_type": "splash 3 tiles",
+      "burst_shots": [
+        3,
+        5
+      ],
+      "attack_speed_s": 0.5,
+      "time_between_bursts_s": [
+        5,
+        6
+      ],
+      "hp_range": [
+        500,
+        1850
+      ],
+      "dmg_per_hit": [
+        45,
+        88
+      ],
+      "dps_range": [
+        22,
+        62
+      ],
+      "max_level": 10,
+      "count_any_bh": 1,
+      "unlocks_bh": 5,
+      "note": "Ground only -- dragons are immune. Has a MINIMUM range of 4 tiles (~152 px): it cannot hit anything close to it, so the Battle Machine is safe once it closes in. Splash 3 tiles is defeated by our spacing."
+    },
+    "ottos_outpost": {
+      "targets": "none_direct",
+      "size_tiles": "4x4",
+      "hp_range": [
+        650,
+        2750
+      ],
+      "max_level": 10,
+      "count_any_bh": 1,
+      "unlocks_bh": 6,
+      "stage": 2,
+      "spawns_on_death": {
+        "unit": "zappies",
+        "count_range": [
+          2,
+          5
+        ]
+      },
+      "awards_extra_star": true,
+      "note": "STAGE 2 ONLY -- it is stage 2's Builder Hall. Does not shoot. Highest HP of any building except Walls. Destroying it awards an EXTRA STAR regardless of damage. Spawns 2-5 Zappies on death; Baby Dragon Fiery Sneeze is a listed counter to those."
+    },
+    "roaster": {
+      "targets": "both",
+      "range_tiles": 7,
+      "size_tiles": "3x3",
+      "damage_type": "area splash 1.2 tiles",
+      "shots_per_burst": 15,
+      "attack_speed_s": 0.125,
+      "time_between_bursts_s": 0.05,
+      "hp_range": [
+        800,
+        2600
+      ],
+      "dmg_per_shot": [
+        15,
+        36
+      ],
+      "dps_range": [
+        59,
+        143
+      ],
+      "max_level": 10,
+      "count_any_bh": 1,
+      "unlocks_bh": 6,
+      "note": "Hits AIR AND GROUND. Splash is only 1.2 tiles, so scattering prevents it hitting several troops at once. Do NOT stack the Battle Machine on top of dragons -- the splash would catch both."
+    },
+    "giant_cannon": {
+      "targets": "ground",
+      "range_tiles": 9.5,
+      "projectile_travel_tiles": 48,
+      "size_tiles": "3x3",
+      "damage_type": "area splash, PIERCING line + knockback",
+      "attack_speed_s": 5.0,
+      "hp_range": [
+        700,
+        2400
+      ],
+      "dmg_per_shot": [
+        205,
+        480
+      ],
+      "dps_range": [
+        41,
+        96
+      ],
+      "max_level": 10,
+      "count_any_bh": 1,
+      "unlocks_bh": 7,
+      "note": "Ground only -- dragons immune. Pierces through a LINE of ground troops, but we field exactly ONE ground unit (the BM), so the piercing is irrelevant to us; it is simply 480/shot every 5s onto the BM. The wiki lists the Battle Machine as a good tank against it."
+    },
+    "mega_tesla": {
+      "targets": "both",
+      "range_tiles": 7.5,
+      "size_tiles": "3x3",
+      "damage_type": "chain lightning",
+      "num_targets": 2,
+      "chain_distance_tiles": 3,
+      "chain_decay_pct": -40,
+      "attack_speed_s": 4.0,
+      "hp_range": [
+        700,
+        2400
+      ],
+      "dmg_per_shot": [
+        380,
+        896
+      ],
+      "dps_range": [
+        95,
+        224
+      ],
+      "max_level": 10,
+      "count_any_bh": 1,
+      "unlocks_bh": 8,
+      "note": "Hits AIR AND GROUND -- threatens dragons and the Battle Machine alike. 2nd highest damage of any BB defence (Crusher is 1st). Explicitly counters low-count armies like Baby Dragons. Chain arcs only 3 tiles, so >=4.5-tile Tantrum spacing also breaks the chain."
+    },
+    "lava_launcher": {
+      "targets": "ground",
+      "range_tiles": [
+        6,
+        13
+      ],
+      "min_range_tiles": 6,
+      "size_tiles": "3x3",
+      "damage_type": "splash 3 tiles on impact + burn DoT",
+      "attack_speed_s": 7.0,
+      "lava_lifetime_s": 20,
+      "burn_tick_s": 0.4,
+      "lava_radius_tiles": 2.5,
+      "burn_dps": [
+        15,
+        37.5
+      ],
+      "total_burn_damage": [
+        300,
+        750
+      ],
+      "dmg_per_hit": [
+        50,
+        118
+      ],
+      "dps_range": [
+        7.1,
+        16.8
+      ],
+      "hp_range": [
+        500,
+        1850
+      ],
+      "max_level": 10,
+      "count_any_bh": 1,
+      "unlocks_bh": 9,
+      "threat_to_us": "LOW",
+      "note": "Ground only, so dragons are immune. AND the Battle Machine is largely immune to its burn DoT (heroes resist it). Largest blind spot in the BB at 6 tiles. Effectively the least dangerous defence for our exact army."
+    },
+    "x_bow": {
+      "targets": "mode_dependent",
+      "modes": [
+        "ground",
+        "air"
+      ],
+      "range_tiles": 12,
+      "size_tiles": "3x3",
+      "damage_type": "single",
+      "attack_speed_s": 0.192,
+      "hp_range": [
+        1700,
+        2600
+      ],
+      "dps_range": [
+        80,
+        116
+      ],
+      "dmg_per_shot": [
+        15.36,
+        22.27
+      ],
+      "max_level": 5,
+      "count_any_bh": 1,
+      "unlocks_bh": 10,
+      "visual_mode_cue": "Air Mode raises the whole X-Bow and the rear box gains WINGS; Ground Mode sits tilted/lower.",
+      "note": "CONFIGURABLE: Ground Mode OR Air Mode, never both, same 12-tile range either way. Cannot be classified statically -- the classifier must read its MODE, and fail closed to 'threatens both' when unsure. Second-longest range in the BB after Lava Launcher."
+    },
+    "walls": {
+      "targets": "none",
+      "size_tiles": "1x1",
+      "hp_range": [
+        900,
+        3350
+      ],
+      "max_level": 10,
+      "count_by_bh": {
+        "1": 10,
+        "2": 20,
+        "3": 50,
+        "4": 75,
+        "5": 100,
+        "6": 120,
+        "7": 140,
+        "8": 160,
+        "9": 180,
+        "10": 180
+      },
+      "bypassed_by_air": true,
+      "counts_toward_destruction_pct": false,
+      "note": "Baby Dragons fly straight over them -- walls are irrelevant to our dragons. They DO obstruct the ground Battle Machine. Destroying a wall adds NOTHING to destruction percentage, so wall damage is wasted effort."
+    }
+  },
+  "_tactics": [
+    "Firecrackers are air-only: the Battle Machine cannot be hurt by them, so BM is the correct unit to send at them first.",
+    "Baby Dragons are the intended prey of Firecrackers (range 9 tiles, ~340 px at the measured 38 px/tile) -- this explains dragons dying by T+37-54 in runs r5-r7.",
+    "Fiery Sneeze on a Firecracker CLUSTER can destroy several at once (wiki: 'severely damage all of them, if not destroy them outright').",
+    "Air Bombs: 1 per base, range 7.5 tiles (~285 px). Approaching from the far side avoids it entirely -- unlike Firecrackers, of which there are up to 5.",
+    "Spreading dragons defeats Air Bomb SPLASH (1.5 tiles) but NOT Firecrackers (single-target, 9-tile range). Spacing helps against one and is useless against the other.",
+    "Mega Tesla chain range is 3 tiles (~114 px); Tantrum spacing is 4.5 tiles (~190 px), so spreading ALSO prevents the chain hitting a second dragon. Third independent reason to spread.",
+    "Mega Tesla is the only confirmed BOTH-targeting defence so far and there is exactly 1 per base -- the single highest-value thing to locate and route around.",
+    "Guard Post troops STALL the Battle Machine (wiki: clear them early so tanks 'have a much less chance of being stalled'). Since BM survival decides our runs, its 2 roaming troops are a direct threat to the win condition, not a side detail.",
+    "Only 1 of the 2 Guard Post troops (Sneaky Archer) can hit air; the Raged Barbarian is harmless to Baby Dragons.",
+    "KEY: the Crusher is ground-only and hits hardest of any BB defence (1,036 per hit at L10). It is THE Battle Machine killer, and BM survival is what decides our runs.",
+    "Dragons are IMMUNE to the Crusher, so dragons are the correct unit to destroy Crushers -- doing so directly protects the win condition.",
+    "Crusher range is just 2.3 tiles (~87 px) vs Firecracker 9 tiles (~342 px): the BM can simply be routed around a Crusher, whereas dragons cannot dodge Firecrackers.",
+    "Roaster splash is 1.2 tiles (~46 px): a FOURTH mechanic defeated by the same >=4.5-tile spacing (Tantrum, Air Bomb splash 1.5, Mega Tesla chain 3.0, Roaster splash 1.2).",
+    "Do not deploy the Battle Machine ON TOP of a dragon -- Roaster splash would hit both. Adjacent-but-separated is the shape wanted.",
+    "STAGE 2 PLAN: snipe O.T.T.O's Outpost rather than spreading. The wiki says with few stage-2 troops, sniping it for a 4-star 'will net more trophies and loot than a 3-star regardless of damage'. We MEASURED that gold is tiered by stars, so this converts directly into gold.",
+    "Our Baby Dragons are level 18, inside the level-16+ band the wiki says can snipe the Outpost with Fiery Sneeze; it estimates 3-4 dragons against a relative-level Outpost. In r5 we reached stage 2 with 2 fresh dragons and wandered instead of sniping.",
+    "Expect 2-5 Zappies to spawn when the Outpost dies -- Fiery Sneeze is the listed answer.",
+    "Multi Mortar has a 4-tile BLIND SPOT (~152 px). Unlike every other defence, closing distance makes the BM safer, not less safe -- 'try to get near it, as it cannot hit troops close to it'.",
+    "X-Bow is mode-switchable (ground XOR air) at 12 tiles (~456 px) -- the longest reach we will meet below Lava Launcher. A static air/ground label is WRONG for it; detect the wings/raised cue, and if unsure treat it as threatening both.",
+    "Lava Launcher is near-harmless to OUR army specifically: dragons are air (immune) and the Battle Machine largely resists the burn DoT. Deprioritise it entirely -- do not spend routing effort avoiding it.",
+    "Blind spots so far: Lava Launcher 6 tiles (~228 px), Multi Mortar 4 tiles (~152 px). Both are ground-only, so both only ever matter for the BM, and closing distance neutralises them.",
+    "Giant Cannon's piercing-line gimmick is moot for our army: it only punishes multiple ground troops in a row and we field one. Treat it as plain single-target damage on the BM (480 per shot at L10, every 5s).",
+    "Archer Tower is the most numerous BB defence (3 at BH6+) and hits BOTH air and ground at up to 10 tiles (~380 px). Together with up to 5 Firecrackers that is up to 8 buildings shooting our dragons -- which is why they die by T+37-54 in every run regardless of spacing.",
+    "Archer Tower mode changes range only, never targeting, so it is safe to label statically and assume the worst-case 10 tiles. Contrast the X-Bow, where mode flips targeting entirely.",
+    "Walls do not count toward destruction percentage and air units ignore them entirely. For our 6-dragon + 1-BM army, walls only matter for BM pathing -- never as targets.",
+    "Push Traps are a no-op against our army: dragons are air, and the Battle Machine cannot be pushed. Do not plan around them at all.",
+    "The Battle Machine is the correct trap-triggering unit -- immune to Push Traps and tanky enough to eat a mine.",
+    "CORRECTED: with an all-air army there is no free counter to Firecrackers/Archer Towers -- they must simply be absorbed. The immunity split only helps against ground-only defences, which our army ignores entirely anyway.",
+    "CORRECTED: space the BATTLE COPTER >=190 px from dragons as well. It is an air unit and suppresses Tantrum exactly like another dragon would.",
+    "STAGE 2 gives a FREE second hero (the one not selected for stage 1). Always check hero_ready() in stage 2 -- it is a whole extra unit, and r10 wasted it."
+  ],
+  "_perception_limits": [
+    "Hidden Teslas (up to 3, both-targeting) are NOT VISIBLE in any frame before they trigger. A defence classifier can never achieve full coverage of a base; any deploy plan must assume unseen Teslas exist.",
+    "Mitigation 1: a Hidden Tesla needs a clear 2x2 space, so empty 2x2 gaps inside the base are candidate locations -- treat them as suspect rather than safe.",
+    "Mitigation 2 (COUNTING): the number of defences per stage is fixed by Builder Hall level. If the classifier reliably identifies every VISIBLE defence, the remainder against the quota is the number of Hidden Teslas. This turns the classifier into a Tesla COUNTER -- a concrete payoff beyond direct detection.",
+    "Walls are 1x1 and there are up to 180 per base, so they would swamp any building-proposal step. Mask them out by colour before proposing (the existing wall mask already does this). They are also the tile-size ground truth: adjacent wall blocks gave the ~38 px/tile measurement.",
+    "TRAPS ARE ALSO INVISIBLE, and there are 4 kinds (Push Trap, Spring Trap, Mine, Mega Mine). Mines and Mega Mines can be SET to air, so an unknown number of unseen air threats exist in every base on top of the Hidden Teslas.",
+    "Traps CANNOT be inferred by the quota-counting trick either: they are not buildings and do not count toward destruction percentage, so they never appear in the defence quota. Hidden Teslas can be counted; traps cannot be counted at all.",
+    "NET: a perfect defence classifier still cannot see up to 3 Hidden Teslas plus an unknown number of air-capable mines. Any 'safe corridor' the planner computes is provisional -- plans must degrade gracefully when a dragon dies to something that was never on screen."
+  ],
+  "_open_gaps": [
+    "Builder Base Cannon: range and per-BH count unconfirmed (only the Home Village page was captured).",
+    "Double Cannon per-BH count unconfirmed.",
+    "These two block the Hidden-Tesla COUNTING trick, which needs the exact defence quota per Builder Hall level. The wiki notes BH10 has a minimum of 13 defences per stage assuming the X-Bow is built."
+  ],
+  "traps": {
+    "_note": "NOT buildings: they do not count toward destruction %, never need destroying for 100%, and are INVISIBLE until triggered ('traps do not light up the map'). Always armed in the Builder Base -- no re-arming between battles. Troops CAN be deployed on top of them, so they never affect deploy validity.",
+    "push_trap": {
+      "targets": "ground",
+      "size_tiles": "2x2",
+      "trigger_radius_tiles": 1,
+      "aoe_radius_tiles": 3.5,
+      "push_distance_tiles": 6,
+      "deals_damage": false,
+      "spring_capacity": [
+        8,
+        26
+      ],
+      "count_bh7_10": 5,
+      "battle_machine_immune": true,
+      "threat_to_us": "NONE",
+      "note": "HARMLESS TO OUR ENTIRE ARMY. No effect on air units (dragons immune), and the Battle Machine explicitly CANNOT be pushed despite its spring weight of 25. Deals no damage at all. The wiki even recommends using the BM to safely trigger traps."
+    },
+    "spring_trap": {
+      "targets": "ground",
+      "effect": "ejects ground troops from the battle"
+    },
+    "mine": {
+      "targets": "mode_dependent",
+      "modes": [
+        "ground",
+        "air"
+      ],
+      "note": "Can be SET to ground or air. In air mode it damages our Baby Dragons."
+    },
+    "mega_mine": {
+      "targets": "mode_dependent",
+      "modes": [
+        "ground",
+        "air"
+      ],
+      "note": "Can be SET to ground or air. In air mode this is a large burst of damage onto a dragon."
+    }
+  },
+  "_our_army": {
+    "_CORRECTION_2026_09_09": "Our hero in the slot is a BATTLE COPTER (level 30), verified from the troop-card art. The Battle Machine IS available -- it is simply not the selected hero. (An earlier note claimed it was upgrading; that was WRONG. The greyed '4d 16h' entry on the Start Attack screen is a HIDDEN TESLA under construction -- that row lists buildings being upgraded, not army.) Builder Base fields ONE hero per attack, so the choice is Copter XOR Machine.",
+    "composition": {
+      "baby_dragon": {
+        "count": 6,
+        "level": 18,
+        "domain": "air"
+      },
+      "battle_copter": {
+        "count": 1,
+        "level": 30,
+        "domain": "air"
+      }
+    },
+    "consequence_1": "THE WHOLE ARMY IS AIR. Dragons and the Copter share one threat set; neither covers the other's weakness. There is no ground unit to clear Firecrackers safely.",
+    "consequence_2": "The entire army is immune to every GROUND-ONLY defence: Cannon, Double Cannon, Crusher, Multi Mortar, Giant Cannon, Lava Launcher -- 6 of 16 -- plus Push Traps, Spring Traps, ground-set Mines, and Walls (bypassed, and they do not count toward destruction %).",
+    "consequence_3": "CRITICAL: the Copter is an AIR unit, so parking it among the dragons SUPPRESSES their Tantrum (which needs >=4.5 tiles / ~190 px from any other AIR unit). The r7 'hero mid-arc' placement was actively cancelling the bonus on nearby dragons. The Copter must be spaced >=190 px from dragons too -- 7 air units to separate, not 6.",
+    "open_question": "The Copter's ability did NOT activate on card taps at T+14.3 / T+24.3 (r8 frames: the card flashes on tap but never enters cooldown). Hero abilities likely need to CHARGE first. Verify by tapping later and confirming the card greys out.",
+    "hero_choice": {
+      "battle_copter": {
+        "domain": "air",
+        "suppresses_tantrum": true,
+        "deploy": ">=190 px from every dragon -- it counts as a 7th air unit"
+      },
+      "battle_machine": {
+        "domain": "ground",
+        "suppresses_tantrum": false,
+        "deploy": "WITH the dragons -- it cannot break Tantrum, and it pulls fire from the four both-targeting defences (Archer Tower x3, Hidden Tesla x3, Mega Tesla, Roaster)",
+        "cannot_shield_against": "Firecrackers and Air Bombs are AIR-ONLY: they ignore a ground hero entirely and keep shooting dragons."
+      },
+      "recommendation": "Prefer the BATTLE MACHINE: it tanks the both-targeting defences AND leaves Tantrum intact on all 6 dragons. The Copter does neither.",
+      "_CORRECTION_stage2": "You get BOTH heroes, one per stage -- it is NOT an either/or choice. Observed in r10: the selected hero (Battle Machine) fights stage 1, and the OTHER hero (Battle Copter) appears FRESH and deployable in stage 2. r10 deployed only the two new dragon cards and left that free Copter unused for all of stage 2. Detect it with builder_base.hero_ready() (grey card ~1.9 saturation, live ~93.0). In stage 2 the Copter is AIR, so space it >=190 px from the stage-2 dragons."
+    }
+  }
+}
