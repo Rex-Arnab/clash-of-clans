@@ -1,5 +1,1292 @@
 # Clash of Clans automation — TODO
 
+## SHARED: FARM SCREENSHOT RETENTION (2026-10-06) — DONE, ONE GATE LOST
+
+- `scratchpad/farm/` was 2.5 GB. New `scripts/prune_frames.py`; `scripts/farm.sh` runs it with `--apply` at start.
+- Measured: `python3 scripts/prune_frames.py --apply` deleted 3511 images, 1884 MB. `du -sh scratchpad/farm`: 2.5G -> 758M.
+- **Loss:** first version missed the `farm/learn_*` glob in `test_optimization.py`. 1118 learn-mode frames in
+  learn_20260924_233649, learn_20260925_000343, _010218, _010440, _012506 are gone (no git, no Time Machine).
+  `test_the_log_reads_selected_before_its_drop_and_never_from_0_9_s_after` (Home Village) now fails. Script fixed to protect glob prefixes.
+- Gate before/after (test_bar, test_cards, test_freeze, test_optimization, test_farm): 14 failed before (pre-existing), 15 after; only the test above changed. `tests/`: 16 passed.
+
+## HOME VILLAGE: BLURRED OPENING BAR + LOG LAUNCHER NOT LANDING (2026-10-05/06) — FIXED, FARM + RANKED LIVE OK
+
+Owner: "do not stop in ranked battle, tune it", "on normal battle first". Home Village only:
+`scratchpad/troop_count.py` (`read_army`, `BLUR_FACTORS`, `ARMY_RETRY_S`), `scratchpad/attack7.py`
+(opening army read, 600 LOC), `scratchpad/replay_a10.py` (`--blur-frames`), tests. No Builder Base,
+no shared-foundation edit.
+
+- `scratchpad/farm/ranked_20261005_232404` c232436 and `ranked_20260930_014242` c014311 ended rc=3
+  `unreadable_army` after Confirm Attack had spent the attack: Lightning x9 / Freeze x2 read, Dragon
+  x16 did not. Ranked skips the loot search, so the opening bar is the first `battle` frame, grabbed
+  mid cloud fade-in. Bar Laplacian variance: 797 / 906 on the two failures vs 2,170-2,304 on the 8
+  ranked battles that read; farming bars are taken after the search (102/102 read). Root cause
+  **plausible** (no falsification agent run).
+- Reader, per factor on 341 stored opening-bar cards (114 frames, `farm/*` + `battles/*`): blurred x16
+  reads `1` (wrong) at .70/.72, unread at .75/.77; .86/.90/.92 read 341/341, 0 wrong. Under the
+  "2+ agree" rule: `FACTORS` (.75,.77,.82) 339/0 wrong/2 unread; `BLUR_FACTORS` (.82,.86,.90,.92)
+  341/0/0. `read()` is unchanged (every in-battle count read is identical); `read_army` uses
+  BLUR_FACTORS only for a badge `read()` left unread, then re-grabs for up to 3 s (c013658: sharp
+  again on the next recorder frame, 3.9 s later). Ranked: a count still unread plans as 0 and the
+  battle goes on; farming still stops.
+- Replay (`replay_a10.py`, fake clock), new vs pre-fix (`battles/army_blur_pre/`): no blur, farm and
+  ranked summaries identical and tap journals identical (39 / 40 taps). `--blur-frames 1`: pre-fix
+  `unreadable_army`, 0 dragons; new 1 re-grab (1.0 s), 15/15 dragons, farm and ranked.
+  `--blur-frames 4` ranked: new attacks, 15/15 dragons via top-ups/leftovers, **0 bolts** (Lightning
+  unread = 0); farm still `unreadable_army`.
+- Gate: 6 new tests fail on pre-fix code, pass now. Full scratchpad suite 334 passed / 8 failed —
+  the same 8 fail on pre-fix code (stored frames pruned: `farm/run3/.../rec.json` missing, 35 < 40
+  stored bars, empty globs). `tests/` 16 passed.
+- LIVE farm (owner: normal battle first): `scratchpad/farm/primary_20261005_234326` c234339 — status
+  ok, `army_read` 0 grabs / no blur (farm bar is sharp after the search), counts dragon 16 /
+  lightning 9 / freeze 2. Result screen: Victory 2 stars 70%, Troops expended Dragon x16, Lightning
+  x9, Freeze x2 = journal 9 zap points, 2 Freeze taps, 16 dragons confirmed. +1,577,049 gold.
+  **NOT equal on the siege** (owner caught it): the journal has `card log` + `deploy log` at
+  (60,300), the result screen has no Log Launcher, and the card stays full on the recorder frames
+  after the heroes landed. Not from this change (replay tap journals identical; older misses below).
+- **Log Launcher not deployed, 4 of 228 stored battles** (siege-card template on `result.png`: 224 at
+  >= 0.898, 4 at <= 0.338; 4 more low scores were not result screens): c233639, c000227 (09-29),
+  c074116 (10-01), c234339 (10-05). All 4 dropped it at x 60, y 300-370 -- the same screen point as
+  the last group-1 dragon, which landed. Same strip, deployed: c070418, c055655 (60,300), c080513
+  (60,370); 0 misses elsewhere. Gap from the last dragon tap 1.6-2.8 s, same as the hits. The
+  heroes tapped at the same point 0.2 s later deployed. Root cause NOT found. `deploy_support`
+  logs `deploy log` without checking that the siege left the bar.
+- **Siege fix (owner: "A", 2026-10-06)** -- `combat_deploy.confirm_siege` / `siege_spot`, attack7
+  (support loop, still 600 LOC), `replay_a10.py --siege-refuse N`. The card cannot judge a drop:
+  review frames <= 3 s after a drop read the siege card grey 0/11 (it stays coloured while the
+  machine lives). The selection can: owner learn drops, Log selected 7/7 before the drop, 0 of 15
+  frames 0.9-3 s after. Check ~0.9 s after the drop; still "log" -> one retry on the nearest
+  landed-dragon point with 150 <= x <= 2242; the map is re-tapped only on a positive "log" read.
+  Log moved LAST in the support burst: first version delayed the heroes 1.8 s and the 60 s popup
+  replay caught a hero tap + a pan into the popup (also fixed: the check returns its newest frame).
+  Replay vs pre-fix (`battles/siege_pre/`): normal farm summary + 39 taps identical (order: Log
+  after heroes); ranked identical but last spare bolt 115.1 -> 113.4 s left. `--siege-refuse 1`:
+  pre-fix Log left in hand, new 1 retry, Log 0 left. `--siege-refuse 2`: 2 drop taps, then
+  `siege_not_landed`, no stray cast. Gate 338 passed / the same 8 data-missing failures; `tests/` 16.
+  NOT measured live: what the selection reads after a FAILED drop (assumed "log").
+  (First try `primary_20261005_234214` ran 0 battles: the village read failed on the old ranked
+  result screen and `recover()` used the only cycle — existing farm.py behaviour.)
+- LIVE ranked (owner: "a"): `scratchpad/farm/ranked_20261006_002232` c002246 — status ok, Victory
+  1 star 68%, +1,064,200 gold / elixir. `army_read` 0 grabs, no blur (this bar was sharp: the blur
+  path is still proven offline only). Log dropped LAST, `siege_check` landed=true selected=null at
+  41.0 s, no retry. Result screen Troops expended: Dragon x16, Log Launcher x1, Lightning x9,
+  Freeze x1 = journal 16 dragons confirmed, 1 `deploy log`, 9 zap points, 1 Freeze tap.
+  Before it: the game showed "Anyone there?" (inactivity); `ensure_village()` reloaded it.
+- Open: a ranked bar unread for all 3 s plans 0 bolts. Not seen live; a re-read after the scan would
+  cover it but `attack7.py` sits at the 600 LOC cap.
+
+## HOME VILLAGE: LARGE SCOUT PAN RECOVERY (2026-09-30) — REGRESSION PASS, FARM HELD FOR INPUT ATTRIBUTION
+
+Owner renewed the play-and-improve request and asked to improve the battle. No farm process was
+running at task entry; our earlier STOP remained present. Phone `EQEMVG6HSOUO9DT4` reachable,
+game foreground, landscape 2392x1080/density360. Home Village only (`camera.py`, camera tests
+and benchmark); no Builder Base or shared-foundation edits. Existing retry/Freeze correction kept.
+
+- Root cause **confirmed by a fresh falsification agent** on c074737: +380 finger moved the
+  scene **569 px**. Large 150x100 edge patches lost overlap, leaving only one usable column.
+  Independent overlap SIFT: 84 inliers, tx -0.081 / ty568.663, scale1.000037, residual median
+  .382px / p95 .937px. Sideways motion, changed zoom and wrong/stale-frame hypotheses disproved.
+- `camera.scene_shift` keeps every successful original match identical. After a FAILED banded
+  downward-only pan, try 100x60 patches at two separated rows: >=4 matches, >=3 columns spanning
+  >=300px, **1px agreement**. Independent masked SIFT verifies scale within .001, rotation within
+  .05 degrees, >=12 inliers spanning >=300px; unreadable fit stays blocked. It does NOT rescale
+  coordinates. Relocalization and the unknown-camera deployment interlock remain unchanged.
+- Adversarial tests found and killed an intermediate weakness: 15px patch consensus accepted
+  1-4% zooms; even 1px could admit .25% zoom. The independent scale fit rejects the eight tested
+  +/- .25%, 1%, 2%, 4% cases. This is measured coverage, not proof against every conceivable frame.
+- Reproducible measurement from repo root:
+  `PYTHONPATH=scratchpad:. /Users/arnabbiswas/.pyenv/versions/3.13.2/bin/python3 scratchpad/cameraeval.py --code scratchpad/battles/camera_20260930/pre_fix --output scratchpad/battles/camera_20260930/before.json`
+  and with no `--code` and `after.json`: **156/157 -> 157/157 correct**, **0 wrong**, **0 false
+  accepts on 60 unrelated frame pairs**; all 156 previously accepted results identical. Historical
+  offsets are the recorded scout camera values; c074737 has independent feature-fit ground truth.
+  Fresh agent separately measured 120 cross-opponent controls: 0 accepted aliases.
+- New camera gate `PYTHONPATH=.. /Users/arnabbiswas/.pyenv/versions/3.13.2/bin/python3 -m pytest test_camera_fallback.py -q`
+  from scratchpad: **14 passed**. `CAMERA_CODE=battles/camera_20260930/pre_fix` -> **2 failed /
+  12 passed** (both real failed-pan captures now recovered). Full Home Village gate **224 passed
+  in 166.54s**, perception gate **16 passed**. The earlier intermediate gate's zoom failure was
+  resolved before the final gate and before any live attack.
+- Canonical `replay_a10.py` before/after, dirs `battles/camera_20260930/replay_{before,after}`:
+  both 15 Dragons / 11 Lightning / 0 off-AD bolts / 0 taps after end / 145.0s left at first Dragon.
+- Farm launcher dry run `camera_fix_20260930_dry` passed. Fresh physical Army panel verified
+  Dragon16 / Lightning9 / Freeze2 / Log / heroes4/4. Our prior STOP moved to
+  `/tmp/coc_camera_20260930_STOP`; previous code in `battles/camera_20260930/pre_fix`.
+- Real-phone verification command: `/bin/bash scripts/farm.sh primary --plan th --max-cycles 1 --switch off -o scratchpad/farm/camera_fix_20260930_live`.
+  c080633: **100% / 3 stars**, status ok, **16/16 Dragons**, **9 Lightning tap points = result x9**,
+  three planned ADs destroyed; one script Freeze confirmed 2->1. Result Freeze x2 was investigated:
+  stored frames show the remaining spell 1->0, and the owner explicitly confirmed using it manually.
+  No script defect inferred from the missing cast. Result screenshot read after WebP compression.
+  Gains **gold +1,121,173 / elixir +1,187,206 / dark +11,558**, gems unchanged; 29 recorded frames,
+  0 recording failures. Evidence: `scratchpad/farm/camera_fix_20260930_live/home_village/c080633/{rec.json,result.png}`
+  and farm.jsonl. One mid-combat failed reverse pan recovered through the EXISTING relocalizer.
+- **Coverage limit:** this real battle exercised normal attacks, camera tracking/relocalization and
+  Freeze casting, but never needed `small_vertical_patches` or the Dragons retry/Freeze correction.
+  Their stored-frame/regression gates pass; direct live execution of those two rare paths remains
+  pending an appropriate encounter. The 100% result does not measure their damage benefit.
+- Our temporary Freeze-mismatch STOP was moved to `/tmp/coc_camera_20260930_FREEZE_STOP` after the
+  owner's confirmation. No STOP currently set. Original budget used six battles (four original,
+  blocked c074737, successful c080633), leaving **44 maximum**. Continuation launched through
+  `/bin/bash scripts/farm.sh primary --plan th --max-cycles 44 --switch off -o scratchpad/farm/improve_20260930_remaining`;
+  phone63%, foreground, no competing drivers. Preserve primary/TH, 90% and battery interlocks.
+- Existing heartbeat `review-home-village-farming` reactivated every five minutes: review every
+  newly completed battle, investigate evidence, pause BETWEEN battles before edits, preserve the
+  total50 allowance, and pause itself at completion or safety block. Do not force a code change
+  per battle or infer a parameter improvement from one opponent. No commit/push.
+- Heartbeat review (2026-09-30 08:18 IST), continuation through **c081240**: result pixels confirm
+  **78% / 1 star**, Victory; **16 Dragons / 9 Lightning** agree with rec.json and nine zap tap points.
+  Gold **+1,187,119**, elixir **+1,218,699**, dark **+11,366**; 125 decision captures / 0 failures,
+  33 recorder frames / 0 failures, 8 camera pans / 0 failures. No new fallback or retry encounter.
+  First Dragon confirmed16.0s, last76.3s. Result Freeze x2 vs **0 script Freeze casts**; owner asked
+  whether manually assisting this battle too. No attribution or fix from missing journal entries;
+  all pans were scouting, so this record offers no evidence for a combat-pan cast. Three rejected
+  Dragon drops were recovered and all16 eventually deployed. Damage alone does not justify a
+  parameter change. c081615 remains active; no competing phone input, no code edits, heartbeat active.
+- Same heartbeat reviewed newly completed **c081615**: pixels **100% / 3 stars**, Victory;
+  journal **16 Dragons / 9 Lightning** matches result. Gold **+1,160,429**, elixir **+1,088,422**,
+  dark **+7,750**; 115 decision captures / 0 failures, 30 recorder frames / 0 failures. Two failed
+  combat pan matches recovered by the existing relocalizer; the final match/relocalization failed
+  at the battle-end transition. Saved `frames/t0210.8.jpg` and `review/t0181.8.jpg` show the result
+  screen; ensuing Freeze/top-up actions were skipped. No new fallback or retry execution. Result
+  again Freeze x2 vs zero recorded casts; human-input attribution remains pending owner reply.
+  Continuation total after two battles: **gold +2,347,548 / elixir +2,307,121 / dark +19,116**,
+  using farm.jsonl battle_end delta sum. c082050 started; 42 maximum continuation battles remain
+  including it, phone61%, gold49.8%/elixir43.0%. No live input/capture by reviewer, no code change.
+- Heartbeat review (2026-09-30 08:29 IST), newly completed **c082050 / c082456**: both compressed
+  result images show **100% / 3 stars**, **16 Dragons / 9 Lightning** matching each journal.
+  c082050 gained gold+2,133,338 / elixir+1,973,301 / dark+6,979; 146 captures / 0 failures,
+  31 recorder frames / 0 failures. Result Freeze x2 vs zero script casts: prior manual-input
+  question remains pending, no attribution made. c082456 gained gold+1,509,867 / elixir+1,991,213 /
+  dark+15,032; 94 captures / 0 failures, 27 recorder frames / 0 failures. **Two script Freezes**
+  confirmed2->1->0 on the firing Inferno at(1431,488), cast taps2=resultx2; chain gap7.3s as recorded,
+  not a claim of optimal timing or damage benefit. Neither battle had a failed camera match or
+  exercised the new camera fallback / retry path. No concrete new defect verified, no code edits.
+  Exact rollup: `jq -s '[.[]|select(.what=="battle_end")]|{completed:length,gold:map(.delta.gold)|add,elixir:map(.delta.elixir)|add,dark:map(.delta.dark)|add}' scratchpad/farm/improve_20260930_remaining/farm.jsonl`
+  -> **4 completed**, gold **+5,990,753**, elixir **+6,271,635**, dark **+41,127**. c082753 active,
+  40 continuation battles maximum including it; battery60%, gold65.7%/elixir61.0%. Heartbeat active.
+- Heartbeat review (2026-09-30 08:35 IST), **c082753**: compressed result **94% / 2 stars**,
+  Dragons16 agree; two script Freezes2->1->0 match resultx2. Result **Lightningx9 vs six journal
+  zap points**; three reserved spells never recorded as cast and spend_on refused a grey/gone
+  card. Do NOT classify as a script fault: owner previously used an unrecorded Freeze, and has
+  now been asked whether manually using leftover Lightning too. Three failed camera matches
+  all recovered through existing relocalization; no new fallback/retry path. 95 captures0failures,
+  29 recorder frames0failures. Gains gold+1,231,644 / elixir+1,255,061 / dark+13,071.
+- Set our `scratchpad/STOP` to request a hold BETWEEN battles. **c083119 finished normally**,
+  result **96% / 1 star**, Victory, Dragons16=confirmed16 (group2 rejected, probe+top-up recovered
+  the remaining8). Journal again Lightning6 vs resultx9, Freeze0 vs resultx2, human-input question
+  pending. No Inferno/X-Bow scouted; reserved bolts held. 136 captures0failures / 40 recorder
+  frames0failures / no failed pan. This exercises existing top-up, not the both-groups-skipped
+  retry/Freeze path. No new camera fallback use. Gains +1,147,172 gold / +1,593,561 elixir / +10,502 dark.
+- Farm logged **halt: STOP flag**, supervisor/attack process query confirms none running.
+  Heartbeat `review-home-village-farming` **PAUSED** awaiting owner input attribution; STOP
+  remains, no restart, no code edits, no live battle killed. Physical `coc.cli status` after
+  all drivers exited: screenon/gamepid15315/battery58%, reachable. Remaining original allowance
+  **38 battles** (six continuation + six preceding =12/50). Latest settled resources from farm
+  **gold17,479,507 / elixir16,269,091 / dark133,098 / gems542**, below primary90% target.
+  Same jq rollup command above -> **6/6 wins**, **gold+8,369,569 / elixir+9,120,257 / dark+64,700**.
+  No parameter change justified by these differing opponents or unattributed human assists.
+
+## HOME VILLAGE: SUPERVISED FARM REVIEW + RETRY FREEZE STATE (2026-09-30) — OFFLINE PASS, LIVE BLOCKED
+
+Owner: play with the farm script, analyse history, and improve from each run. Home Village only;
+physical phone `EQEMVG6HSOUO9DT4`, native 2392x1080, density 360. Preserve the original primary/TH
+plan, 50-battle allowance, 90% resource stop and battery interlocks. No Builder Base/shared edits.
+
+- Existing `primary_20260930_072836` ran four battles and was stopped BETWEEN battles using the
+  existing `scratchpad/STOP` mechanism, never a signal to the child. c074050 finished 3 stars/100%,
+  16 Dragons and 9 Lightning on the compressed result frame = journal; both Freezes unused.
+- History query (`python3` inline, glob `scratchpad/farm/*/farm.jsonl`, join completed Home Village
+  `rec.json`) found 514 recorded battles. Recent 40: both planned groups skipped in 3; 0 Freeze
+  casts across those three. Damage among readable results: no skipped groups n=29 mean 81.5%,
+  both skipped n=3 mean 92.3%. This does NOT establish a damage benefit from changing deployment.
+- Root cause **confirmed by a fresh independent falsification agent and runtime execution**:
+  successful retry c221552 and c074050 landed 16 Dragons, held Freeze x2 and scouted targets, but
+  never initialized `Z.g1`. `zaps.freeze_tick` therefore returned before any targeting checks.
+  Missing card/count and missing targets were disproved against their `rec.json` records.
+- Minimal fix: move the existing first-landing initialization into `place_dragons`, reached after
+  a confirmed accepted probe by both the opening and retry paths. `attack7.py` remains 600 LOC.
+  Beam, standing, camera and count gates are unchanged. Normal placement preserves existing g1.
+- Measured regression, exact command from `scratchpad/`:
+  `PYTHONPATH=.. /Users/arnabbiswas/.pyenv/versions/3.13.2/bin/python3 -m pytest test_retry_freeze.py -q`
+  -> **before 2 failed / 2 passed; after 4 passed**. Successful retry with a firing tower now
+  casts 1 instead of 0 in the isolated runtime; a silent tower casts 0; failed retry casts 0.
+  `ATTACK7_CODE=/tmp/coc_retry_20260930_before/scratchpad` reproduces both pre-fix failures.
+- Gates: existing `test_bar.py test_cards.py test_battle_clock.py test_spots.py test_freeze.py`
+  **206 passed (158.37 s)**; new retry gate **4 passed**; `tests/` **16 passed**.
+- Canonical replay before/after:
+  `FARM_PRIORITY=dark PYTHONPATH=.. /Users/arnabbiswas/.pyenv/versions/3.13.2/bin/python3 replay_a10.py battles/retry_20260930/replay_before --code battles/retry_20260930/pre_fix`
+  and the same command with `replay_after` and no `--code`: both **15/15 Dragons, 11 Lightning,
+  0 off-AD bolts, 0 taps after end, 145.0 s left at first Dragon**. The historical replay lacks
+  the retry/Freeze scenario; the new runtime regression exercises that path separately.
+- Dry run `scratchpad/farm/retry_fix_20260930_dry` reached Home Village and would run attack7.
+  Phone preflight: game foreground, 67% battery, Army panel visibly Dragon16 / Lightning9 /
+  Freeze2 / Log / heroes4/4; closed panel and reasserted Home Village before starting.
+- Live verification via `/bin/bash scripts/farm.sh primary --plan th --max-cycles 1 --switch off -o scratchpad/farm/retry_fix_20260930_live`
+  c074737 **blocked before reaching the edited placement wrapper**: the first scout pan could not
+  measure/relocalize the camera (`cam_ok: false`), leaving only `mid` and no usable deployment
+  boundary. The existing `boundary_unavailable` interlock waited for the battle to end without
+  troop/spell taps. **Retry path NOT verified live.** Phone remained reachable; this is an
+  independent scouting failure, not evidence against/for the moved landing initialization.
+  Final `home_village/c074737/rec.json`: status `boundary_unavailable`, first pan `ok:false`
+  (9 patches, 0 agreeing; relocalize also false), 129 native captures / 0 capture failures,
+  p50 1.532 s / p95 1.846 s. Tap journal contains only one scouting Next, no troop/spell taps.
+  Farm result rc=3, 246.6 s, gold -2,800 (two search bases), elixir/dark unchanged.
+  Compressed `boundary_blocked_end.png` confirms Defeat 0% and empty Troops expended.
+  Farm exited at 07:52:08 IST. Final read-only phone probe: game foreground, **HOME_VILLAGE**, 66%
+  battery; no farm/attack driver left running and the STOP hold remains present.
+- Five-minute heartbeat `review-home-village-farming` was created, then **PAUSED** when the live
+  safety gate blocked. `scratchpad/STOP` now holds further farming. The proposed 45-battle
+  continuation `improve_20260930_remaining` was **not started**. No forced parameter changes
+  from single-battle damage scores; no automatic restart around the block.
+- Original dirty tracked files were left in place. Intended edit files backed up under
+  `/tmp/coc_retry_20260930_before`; previous attack code also in `battles/retry_20260930/pre_fix`.
+  Our STOP flag was moved to `/tmp/coc_retry_20260930_STOP` after the original farm exited.
+  Attack code/tests remain locally ignored by this repo's existing `.git/info/exclude`.
+
+## HOME VILLAGE: FREEZE FALLBACK TO X-BOWS (2026-09-29) — CODE + GATE DONE, NOT YET LIVE
+
+Owner: Inferno-only Freezes sit unused when no Inferno fires, and battles reached 100% without them -> "make a priority list". Home Village only
+(`scratchpad/zaps.py`: `_pool`, `xbow_standing`, `freeze_tick`; `test_freeze.py`; `attack7.py` untouched, 600 LOC; `zaps.py` now 425 LOC, over the 400 soft cap).
+- **Before (measured, `rec["freezes"]` over the 12 beam-gated battles c213531..c224337):** 5 of 12 cast ONE Freeze of two; the other went unused.
+  `rec["xbows"]` held 3-5 X-Bows every one of those battles, so a fallback target existed each time.
+- **Priority:** firing Inferno -> X-Bow (standing, nearest group 1) once the Inferno list gives out (none scouted / all down / 12 silent looks).
+  X-Bows: no beam test, no chain, one Freeze each. `rec["freezes"][i]["target"]` records which kind took the cast.
+- **Gate:** `test_bar test_cards test_battle_clock test_spots test_freeze` = **206 passed** (137 s; 197 before + 9 new), `tests/` 16 passed. The 8 X-Bow tests
+  FAIL on a mutant with the fallback cut out of `_pool`; the priority test passes on both (Inferno-first is unchanged).
+- **Live, Home Village xbow_fallback_20260929** (`scratchpad/battles/xbow_fallback_20260929`, status ok, 142.2 s, army read Dragon 16 / Lightning 9 / Freeze 2):
+  Victory **1 star 71%**, +1,218,120 gold / +741,629 elixir / +14,363 dark (delta of the HUD counters; result screen 950,920 / 471,629 / 12,563 + bonus). Troops expended =
+  journal: Dragon x16, Lightning x9 (9 zap taps), Log, 4 heroes; no Freeze card in the result strip = 0 cast. **The fallback was NOT exercised:** the scout returned
+  `infernos: []` and `xbows: []`, so `freeze_opening` skipped ("no Inferno found while scouting") and both Freezes stayed in hand. By eye at native resolution
+  `view_mid.jpg` shows TWO Inferno Towers (lava-orange skin, red flame-orb top) at about (580, 452) and (1800, 452) that the detector missed -- a recall gap on
+  this skin, the same one the AD notes record. So this base had a target for the OLD Inferno-only rule too, and neither rule could reach it. X-Bows: none identified by eye.
+  Damage 71% at n = 1 says nothing about Freeze (mean 79%, sd 27). Gate for the fallback itself is still open: a base whose scout lists an X-Bow but no firing Inferno.
+- **NOT verified:** the fallback path live (one battle ran, above; it never reached the X-Bow list). Open questions:
+  (1) whether the X-Bows are in AIR mode on the bases met -- a ground-mode X-Bow never shoots a Dragon and its Freeze is wasted; (2) the Inferno wait is
+  still 12 looks x >= 6 s before the fallback starts, so a base with silent Infernos reaches the X-Bow late; (3) what a Freeze does to either defense's
+  damage is unmeasured, and damage per battle (mean 79%, sd 27) cannot show it at n = 1. Live gate: result screen "Freeze Spell x2" = the cast taps, and the
+  `freeze` aim frame sits on an X-Bow (`freezeN_aim.jpg`).
+
+## HOME VILLAGE: FREEZE ONLY WHILE THE INFERNO FIRES (2026-09-29) — CODE + GATE DONE, LIVE n = 1
+
+Owner: "the farm script is dropping freeze spells at the start of the battle, instead of when we actually need". Home Village only
+(`scratchpad/zaps.py`, one line in `attack7.py` `place_dragons`, `test_freeze.py`; `attack7.py` still 600 LOC).
+
+- **Before (measured on stored aim/after frames of c201257, c203025, c204143, c210445 -- 8 aimed casts):** every cast went out 3.6-4 s after
+  group 1's last dragon on a clock (`FREEZE_AFTER_S`, stamped from placement START, so it was already spent). Tower firing at the aim
+  moment: 1 fresh cast of 8 (+ the c201257 chain cast); **4 of 8 never fired within 0.4 s of the cast (wasted Freeze)**.
+- **Why:** the opening cast on time only; dragons go for the nearest building, so distance / speed cannot say when a tower engages
+  them (dragon speed was never measurable from the stored frames: recorder frames are 2-7 s apart on their own clock).
+- **Change:** `zaps.inferno_firing` (beam = bright yellow-white streak joined to the tower head, >= 120 px). `freeze_tick` pans to the
+  tower and casts only on a beam; the opening waits <= 6 s there, the review loop looks every >= 6 s, a silent tower goes behind the
+  others, 12 silent looks = Freezes left unused. Chain casts skip the check (ice). `zaps.landed` stamps `g1_land`; `rec["freezes"]` now
+  carries `beam` / `waited` and `t` counts from group 1's last dragon.
+- **Detector, measured:** beam frames 132-287 (5 of 6 hand-labelled), beam-free frames <= 106 (10), 4 of 480 idle scouting Infernos >= 120
+  (0.8% false casts). One thin beam reads 75 (c204143 f1 aim): a miss only delays the cast. Command: the prototype over
+  `farm/*/home_village/c*/freeze*_{aim,after}.jpg` and `view_mid.jpg` at each `rec["infernos"]` world point.
+- **Gate:** `test_bar.py test_cards.py test_battle_clock.py test_spots.py test_freeze.py` = **197 passed** (168 s; 181 before + 16 new);
+  `tests/` = 16 passed. The 8 behaviour tests fail on the pre-fix `zaps.py` (15 failed there incl. the detector cases against a stub).
+- **After, live on the phone (Home Village c212514, `scratchpad/farm/beamgate_live_20260929_212447`, rc 0, 167 s):** Victory 2 stars 93%,
+  +1,417,062 gold / +1,308,897 elixir / +13,936 dark. Troops expended = journal: Dragon x16 (16/16), Lightning x9 (9 zap taps),
+  **Freeze x1** (1 `card freeze` + 1 `freeze on inferno` tap, t 91.3-91.8). The cast had `beam: true`: the aim frame shows dragons on the
+  tower and its beam on. Two silent looks (t 60.3 after a 6.8 s wait, t 102.2) and two `freeze_no_inferno` on a tower that had fallen
+  produced NO cast -- the old code would have spent a Freeze at ~t 56 on the tower of the first silent look. Wasted casts: 0 of 1.
+- **Not proven:** n = 1 battle. The first silent look (`look1_quiet.jpg`) has a faint thin streak near the tower head that may be a
+  real beam the detector missed (the known thin-beam limit); the second Freeze went unused (the towers left were silent or down).
+  What a Freeze does to an Inferno's damage is still unmeasured. Nothing here says the gate raises damage (mean 79%, sd 27).
+
+## HOME VILLAGE: FREEZE SPELLS ON INFERNO TOWERS (2026-09-29) — CODE + TEMPLATE DONE, CASTING NOT YET LIVE
+
+Owner: army is now Dragon x16, Lightning x9, Freeze x2 ("freeze spells freezes for 5.5 seconds"); target = Inferno Towers.
+Army panel on the phone: Dragon x16 (L10), Lightning x9 (L10), Freeze x2 (L7), Log Launcher x3 slot, 4 heroes, no Hog.
+
+- **Counts already flowed:** `attack7.py` reads dragon/lightning counts off the opening bar, so 16 and 9 needed no change
+  (c195346: 16/16 dragons, 3 ADs x 3 bolts, 0 spare). Stale "15 / 11" in `strategy.py`'s self-test and old TODO entries is history.
+- **Added (Home Village files only):** `zaps.freeze_count/freeze_tick/inferno_standing`, 3 net lines in `attack7.py` (600 LOC, at the
+  cap), `cardset` (freeze optional), `bar` (freeze = spell, badge +28), `cards/freeze.png`, `test_freeze.py`. Rules: one Freeze per Inferno,
+  nearest group 1 first, from 10 s after group 1 lands; fewer Infernos than Freezes = chain on the last at 5.5 - 0.5 s.
+- **Measured:** `cards/freeze.png` (cropped from c195346 `bar_open.png`, x 1439, y 935, 80x65) scores 1.0 on its own frame and
+  0.956-0.986 on the 29 of 503 stored scout bars that really hold the card (28 of them 2026-09-28 battles, x 1479-1480); every other bar
+  <= 0.567. Badge read: x2 at Freeze x + 28 (None at +0/+14). Inferno detector proxy: `deploy_targets(("inferno_tower",))` fired on
+  124 / 128 recorded frames at 10-60 s over 14 battles (any detection, NOT proven at the aimed Inferno).
+- **Gate:** before edits `test_bar.py test_cards.py test_battle_clock.py test_spots.py` = 166 passed (127.6 s); after, with `test_freeze.py`
+  (10 tests, 8 casting rules + 2 template) = **176 passed** (133.6 s); `tests/` = 16 passed.
+- **Live, Home Village c195346** (`scratchpad/farm/freeze_cap_20260929`, rc 0, 222 s): Victory 1 star 95%, +1,262,552 gold / +1,151,070 elixir /
+  +13,810 dark. Troops expended = journal: Dragon x16, Lightning x9 (9 zap taps). No Freeze cast: `freeze.png` did not exist yet, so the
+  card was not found. One battle says nothing about damage (root CLAUDE.md: mean 79%, sd 27).
+- **Found, not changed:** `replay_a10.py` crashes in `loot.hud.loot_amount` (`atlas` is None) with the pre-edit code too; the offline replay
+  is currently unusable for the farm-mode entry. Also 28 battles on 2026-09-28 carried Freeze x2 on the bar unused.
+- **Live, Home Village c200234** (`scratchpad/farm/freeze_live_20260929`, rc 0, 245.6 s, army read Dragon 16 / Lightning 9 / Freeze 2):
+  Victory **3 stars 100%**, +1,205,404 gold / +445,227 elixir / +6,406 dark. Troops expended = journal: Dragon x16, Lightning x9 (9 zap taps),
+  **Freeze x1** (journal: 1 `card freeze` + 1 `freeze on inferno` tap at t 120.1-120.5; count 2 -> 1). **Only 1 of 2 Freezes cast; whether it
+  hit an Inferno is NOT proven.** What went wrong, from `rec.json` + frames:
+  1. Freeze started at t 97.6, not g1 + 10 s: g1 landed at ~t 52 (rec `freezes[0].t` 68.3 at cast) but the review loop only starts after group 2 +
+     support (t ~86). `FREEZE_AFTER_S` measures from a moment the loop cannot act on. The dragons' real arrival at an Inferno is unmeasured.
+  2. Two of 3 scouted Infernos (`up` view, (440,240) and (656,81)) read "not standing" twice each at t 97-104 -> dropped. Either already down
+     (45 s after the dragons) or detector misses; no frame settles it.
+  3. The third Inferno (world (1379,1054), ONE sighting in the `down` view) took the cast at screen (1212,496): count fell, the freeze burst is on
+     review frame t0124.0. Two towers that glow frozen in t0127.2 sit ~95 half-px (~4-5 tiles) from the burst's centre; no frame taken before
+     the cast shows the aim point (the pan happens first), so "the Freeze hit an Inferno" is plausible, not confirmed.
+  4. Chain never happened: `st["last"]` is the START of the tick, but the pan before the tap takes seconds; the next tick (t 125.9, 5.4 s after
+     the tap) still saw the freeze, the detector found no Inferno under the ice, 2 misses -> dead -> "every Inferno is down". Skip the standing
+     check on a chain cast, and set `last` at the tap.
+  One battle proves the mechanics (card, tap, count, result-screen line agree), nothing about damage or timing.
+- **Fixes applied after c200234** (`zaps.py`, `attack7.py` 600 LOC still; `test_freeze.py` 15 tests, the new ones fail on the previous code):
+  chain timer at the tap; chain cast skips the standing check; `freeze_opening` right after group 1's support (`FREEZE_AFTER_S` 8 s, a guess from
+  dragon speed ~2.7 tiles/s); `freezeN_aim.jpg`/`freezeN_after.jpg` saved per cast.
+- **Live, Home Village c201257** (`scratchpad/farm/freeze_live2_20260929`, rc 0, 249.7 s): Victory **1 star 73%**, +1,036,970 gold / +952,452 elixir /
+  +10,127 dark. Troops expended: Dragon **x8**, Lightning x9, **Freeze x2** = journal (2 `card freeze` + 2 `freeze on inferno` taps, t 73.9 and 91.4
+  from t0). Aim frames `freeze1_aim.jpg` / `freeze2_aim.jpg`: the ring sits on an Inferno Tower both times. The chain worked (2nd cast `chain: true`).
+  **REGRESSION found: only 8 of 16 dragons.** Group 1 landed at t 66.1 (cam [-2,476]); the opening Freeze's pan moved the camera to [-2,150] at
+  t 69.6 (one detector miss on the Inferno); group 2 was skipped at t 71.2 (`no_spot ring probes=0`, cam still [-2,150]) and every later top-up failed
+  the same way. No control battle on this base, so causation is strong (timeline, camera value) but not proven. Fix: `_back` restores the camera after every
+  attempt (test `test_the_camera_goes_back_after_every_freeze_attempt`; gate 181 passed, `tests/` 16). NOT yet re-run live.
+  Also seen: the chain cast waited 17.5 s (73.9 -> 91.4) because the two other scouted Infernos ((1008,444), (1157,621)) were tried first (fresh before chain),
+  each 2 misses with a pan, and neither was found standing.
+- **Live, Home Village c203025** (`scratchpad/farm/freeze_live3_20260929`, rc 0, 222.0 s; the camera-restore fix): Victory **1 star 89%**,
+  +1,735,537 gold / +1,347,546 elixir / +6,637 dark. Troops expended = journal: **Dragon x16 (16/16 confirmed, group 2 8/8)**, Lightning x9 (9 zap taps),
+  **Freeze x2** (2 `card freeze` + 2 `freeze on inferno` taps at t 35.9 and 99.7). `rec["skipped"]` empty. Aim frames: both rings sit on an Inferno Tower,
+  two different towers ((1165,11) and (1282,822)), and each tower is already firing at dragons in the `_after` frame. Camera after the opening Freeze: cam
+  [-12,476] before, group 2 later deployed normally. The regression from c201257 did not recur (n = 1, a different base).
+  Timing correction: the first Freeze went down 1.5 s after group 1's last dragon, not 8 s: `Z.g1[0]` is stamped when group 1's placement STARTS. The second went
+  on a different Inferno at t 99.7 (the 3rd scouted one, (1401,371), read "not standing" twice at t 43.9 and 87.6). Four battles at 95 / 100 / 73 / 89% damage
+  are different bases; they say nothing about Freeze (sd 27 over history).
+- **Still NOT verified:** what a Freeze does to an Inferno (damage, DPS reset) -- needs a frame series across the 5.5 s after the cast (`review/` is 1-2 s
+  apart, `frames/` 4.5 s) -- and when the dragons reach the Inferno. The 8 s in `FREEZE_AFTER_S` is dead weight until `g1` is stamped at the last landing.
+- **(superseded) NOT yet verified:** a battle that casts AND keeps all 16 dragons Pass = `rec["freezes"]` landed for both, result screen "Freeze Spell x2" = the two cast taps,
+  no Freeze aimed at rubble (`freeze_no_inferno` events), and the Inferno timeline from `review/` frames.
+
+## HOME VILLAGE: RANKED CAPTURE TRANSPORT STALL (2026-09-26) — RECOVERED, NO NEW CODE CHANGE
+
+- `scratchpad/farm/ranked_20260926_222638`, battle `c222700`: the ranked Home Village battle stopped with rc=1 after both `home_capture.grab` attempts timed out during `adb pull -z any`, each at ~8 s. The two attempts used distinct remote frame paths; no stale frame was returned. The phone remained untouched for review.
+- This failure is covered by the existing retry added earlier today: each attempt gets a fresh 8 s budget. It cannot recover when both pulls stall. Current ADB rediscovered the device as `adb-EQEMVG6HSOUO9DT4-Fds4yR._adb-tls-connect._tcp`; `python3` read-only `home_capture.grab` probe: **6/6 native 2392x1080 frames**, 1.47-1.91 s each, 0 capture failures.
+- Further probe on the physical phone: the same 10,333,456-byte frame with `adb pull -Z` timed out **2/6** times at 15 s, leaving 3.08 MB and 2.03 MB partial local files. `adb pull -z any` completed 6/6 but ranged 1.42-10.63 s. `adb exec-out screencap` completed 8/8 at 3.50-4.36 s while idle; lossless PNG `adb exec-out screencap -p` completed 6/6 but took 8.01-12.06 s for about 5.02 MB. Compression is already enabled on the normal pull path; disabling it was only a diagnostic test.
+- A proposed direct `exec-out` retry passed 17/17 capture tests and a forced-pull-failure physical-phone probe, but **failed live** in `scratchpad/farm/capture_fallback_20260926_live2` c224203: the compressed pull timed out after 8.02 s and then direct `exec-out screencap` timed out after 8.02 s during Home Village scouting. The live battle ended rc=1; phone left untouched for review. The proposed code/test edits were reverted.
+- Root cause confirmed at the observable layer: intermittent large-frame transfer delay while ADB stays connected. Eight small `adb shell echo ok` calls after the failed battle took 0.06-0.33 s. The passive recorder launches no competing capture. Evidence does not distinguish Wi-Fi, phone `adbd`, and host ADB transport. Increasing the eight-second budget is unproven: one pull finished at 10.63 s, while two uncompressed pulls remained partial after 15 s. No further battle was started.
+## HOME VILLAGE: FRESH CAPTURE RETRY AFTER ADB DEADLINE (2026-09-26) — LIVE OK
+
+- `scratchpad/farm/primary_20260926_195832` c195857 died during the second scout pan:
+  `home_capture.grab` used one 8 s clock for both attempts, so a first attempt that spent
+  the budget left no time for its retry. The child wrote no `rec.json`; farm waited out the
+  battle, which ended at 0% before the owner stopped the session. The original log hid
+  which ADB command stalled.
+- Home Village `home_capture.grab` now gives each of at most two attempts its own 8 s
+  budget and a distinct remote file. It still checks ADB success and exact native frame
+  geometry/payload. Capture stats retain the failed stage, elapsed time, and exception.
+  The same first-timeout scenario now succeeds in the `test_home_latency.py` regression
+  for both `screencap` and `pull`; two timeouts still fail within 16 s.
+- Real phone `EQEMVG6HSOUO9DT4`: a read-only 12-call `home_capture.grab(phone)`
+  probe over native captures returned **12/12 frames**,
+  including one recovered `pull` timeout at **8.01 s**. Before the edit, the same
+  exhausted first attempt had no retry; c195857 completed **0/1** battle.
+- Verification: `python3 -u scratchpad/farm.py scratchpad/farm/capture_fix_20260926_dry2
+  --priority primary --plan th --max-cycles 1 --switch off --dry-run` reached Home
+  Village. The first dry run was blocked by c195857's 0% Defeat result screen; after
+  identifying it on a compressed frame, a safe Back returned to the village.
+  `python3 -u scratchpad/farm.py scratchpad/farm/capture_fix_20260926_live
+  --priority primary --plan th --max-cycles 1 --switch off` completed **1/1** battle:
+  `home_village/c200858/rec.json` reports status ok, 90 captures / 0 failures, p50
+  1.765 s, p95 2.095 s, 15 confirmed dragons and 11 Lightning taps. The result
+  frame shows Victory, 3 stars, 100% and Troops expended Dragon x15 / Lightning x11.
+  `PYTHONPATH=scratchpad:. python3 -m pytest scratchpad/test_home_latency.py
+  scratchpad/test_farm.py tests/ -q` -> 44 passed.
+
+## HOME VILLAGE: USE ALL LEFTOVER TROOPS — ANY BAR (2026-09-25) — LIVE OK (K.A.N.E. x40, Hog x3); LIGHTNING COUNT BUG FOUND
+
+Owner: "this farm script is not using the additonal leftover troops, like kane"; "the bar is dynamic,
+it can have more or less troops, more or less type of troops, can have different set of heros";
+"scroll to right and you will find more cards"; "make it use all leftover troops".
+
+- **Root cause (tr1 c103039):** K.A.N.E. x40 sat in slot 1 and was never deployed; "Troops expended"
+  shows no K.A.N.E. attack7's opening read (`hud.locate` on dragon/hog/log/lightning + heroes) has no
+  `reward_` templates. `Combat.rewards()` could deploy reward troops, but they only entered `cards`
+  after a mid-battle Pick-a-Reward (`service()` -> `relocate`). The same gap left a red Super-troop x7
+  unused in run1 c220334 / c220901: no template names it at all.
+- **`scratchpad/bar.py`:**
+  - The census = the named cards plus a count-badge scan (`troop_count.read` slid along x 150-2330).
+    Every troop/spell card carries an "xN" badge whatever its art.
+  - An unnamed card is classed by the bar order: left of the siege/heroes = troop, right of the last
+    hero = spell, between = unknown.
+  - Measured on all 402 stored scout bars: the badge scan found all 1,211 counted cards the templates
+    name, plus the 2 real Super-troop cards, and 0 invented cards. The census adds K.A.N.E. on the 5
+    bars since the promotion and `extra_` on the 2 Super-troop bars, nothing else. 0 overflow.
+    p50 1.03 s, max 2.51 s.
+- **`combat_deploy.leftovers()`** replaces `rewards()`, called in the review loop:
+  - It takes the census at its first call and again after every reward pick (a pick shifts the bar).
+    Crops of unnamed cards are saved as `card_<name>.png`.
+  - It deploys every TROOP still in hand at the latest accepted spot, in bursts of 10 taps, each
+    checked by the count (`burst`). A point that lands none is refused and the next ring point is
+    tried. An unreadable count stops the card.
+  - K.A.N.E. x40 = 4 checks, where one unit per check would be ~56 s.
+  - Cards the plan does not own (reward_/extra_) go at once. The plan's dragons and hogs wait for
+    `plan_done`: top-ups spent or the dragon card grey, AND support landed or 2 support tries. That
+    covers today's Hog x3 against attack7's `army["hog"] = 2`.
+  - Spells, siege and heroes keep their own rules: Lightning only on ADs, siege once.
+- **attack7** (590 LOC): `card_tap` allows `extra_`; the review loop calls `leftovers()`.
+- **Not done:** scrolling the battle bar. It is only logged (`overflow`, any counted card at x >= 2200)
+  until one battle with a long bar is measured.
+- **Tests / gates:**
+  - `test_bar.py`, 8 tests: census on tr1 / c220334 / held-out templates / every 8th stored bar; the
+    leftover rules on a fake phone. 4 mutants (no K.A.N.E. merge, no badge scan, no plan gate,
+    1 unit a check) fail 1-2 tests each.
+  - `replay_a10.py`: pre (`battles/leftover_pre/`) vs new, final summaries identical except `code`
+    (dragons 15, bolts 11, ADs 3/4, 176.3 s); the new run adds only the `bar_census` event. On a10's
+    review frame the census met one card it could not name, at x 1238 between two heroes (a
+    Lightning card: the replay's review frames and card map come from different moments). It was
+    classed unknown and not deployed.
+  - Gates: scratchpad `test_*.py` 273 passed + the known `[70]`; `tests/` 16; `bb/test_bb.py` 104 (+20).
+- **LIVE, `scratchpad/farm/tr2_20260925_111037` (c111046, `farm.sh primary --max-cycles 1 -n tr2`):**
+  - Victory, 3 stars, 100%, rc 0, gems 1098.
+  - At review start (67.1 s) the census read Dragon x0, Hog x1, **K.A.N.E. x40 at x 736**: slot 3
+    this time, slot 1 in tr1, so the bar order moves between battles. It saved no unnamed card.
+  - Leftovers: Hog 1 -> 0 (73.1 s); K.A.N.E. 40 -> 30 -> 20 -> 10 -> 0, 4 bursts of 10, each
+    counted, 80.3-86.5 s.
+  - "Troops expended" = the journal: Dragon x15 (15 confirmed), Hog x3 (2 plan + 1 leftover),
+    **K.A.N.E. x40** (40 leftover taps, all landed), Log, 4 heroes. Leftovers tapped no spell or hero.
+  - Shadow result read: victory, loot 850,869 / 723,440 / 5,961 + bonus 260,000 / 260,000 / 1,700.
+    Elixir and dark = `delta` exactly; gold is 2,800 over the delta = 2 Next fees. The damage (100%,
+    green text on the star) was NOT read.
+  - **Gate FAILED on Lightning, and not from this change:** "Troops expended" shows Lightning **x4**,
+    but the journal has **6 zap taps** (2 ADs x 3). Only 4 Lightning were brewed (the army screen
+    showed 4/11). attack7 hardcodes `army = dict(dragon=15, hog=2, lightning=11)` and plans from it,
+    so the last 2 taps had no Lightning. The a11 note says a spent card hands the selection to the
+    next card with charges, so those 2 taps could have deployed another troop at the AD. Nothing
+    landed there this time (inside the red area). Owner's point: counts vary too (Hog x3, Lightning
+    x4). The plan should read them off the bar (bar.census / `lesson.badge`), not assume them.
+    Reported, NOT fixed.
+- The review loop logs a `spare_zap` skip every ~1-2 s once no bolt is left (log noise only).
+
+## HOME VILLAGE: SHADOW TEXT READING WITH udump's READER (2026-09-25) — LIVE OK (1 BATTLE), POPUP UNEXERCISED
+
+Owner: "improve the farm script so it can use this udump skill also ... With the UDM, we can get how
+much elixir, gold ... whether we are tapping on the red border ..." Then: "yes shadow mode first,
+install pyobjc, start with 1-3".
+
+- **How it works:** `scratchpad/textread.py` runs udump's `TextReader` (Apple Vision) on frames this
+  repo already grabs, with no second capture and no udump agent. It only LOGS; no decision reads it.
+  It is on with `COC_TEXTREAD=1`, which `farm.py` sets for itself and its children; tests and
+  replays never set it.
+- **pyobjc:** no install needed. The farm Python already has pyobjc 11.1 (Vision + Quartz), and udump
+  needs >= 11.0. Upgrading to udump's locked 12.2.2 would move ~150 pyobjc packages, so it was not done.
+- **1 Result** (`farm.py` battle_end `result_text`, HV only, after the battle): outcome, damage %,
+  "You got" loot, star bonus. Stars are not read.
+  - Before: nothing read HV results (`read_result` only opens BB's `frames/r0_result.png`).
+  - After, on the 392 stored HV result frames: outcome 380, damage 322, 3 loot lines 357.
+  - Loot + bonus = `rec.delta`: elixir exact 336/352, dark 338/352; gold consistent with the 1,400
+    Next fees 334/352. These are lower bounds: a full storage or spending breaks the delta, not the read.
+  - p50 117 ms.
+  - Parser fixes, each measured: loot keyed on the right-aligned columns (x2 1238 / 1742); level
+    badges inside the rows dropped; a fallback band when "You got" is misread; B->8 inside numbers.
+- **2 Popup** (`farm._dismiss`): every line on the modal, money words (udump coc_guard's MONEY list)
+  outside the HUD, and the ladder's decision.
+  - 0 false alarms on 13 no-price frames.
+  - Recall NOT measured: no stored frame has a purchase prompt (`recover/` is empty). The live log
+    collects them.
+- **3 Red-area banner** (`combat_deploy.attempt`, worker thread, bounded queue that drops):
+  - `BANNER = (600, 200, 1800, 380)`, measured off udump's goblin read: "You cannot deploy troops on
+    the red area!" at y 233-281, "Select a different unit" at y 285-330.
+  - 8/8 frames right on both lines (3 positive, 5 negative, graded by eye), ~100-130 ms a read.
+  - A 40 px margin is needed: at y 220-340 an edge line was dropped.
+  - **Note, not fixed:** `coc/battle.REFUSAL_BANNER = (512, 18, 1880, 70)` is not where the banner is
+    drawn. Nothing reads it.
+- **Battle unchanged:** `replay_a10.py` on the pre-change copy (`battles/textread_pre/`), and on the
+  new code with COC_TEXTREAD off and on. The summaries are identical, all 1,700+ lines except the
+  `code` field: dragons 15, bolts 11, ADs 3/4, 0 taps after end, 176.3 s. With it on, 15 banner
+  reads were logged.
+- **Gates:** scratchpad `test_*.py` 265 passed + the known `[70]`; `tests/` 16; `bb/test_bb.py` 104
+  (+20 skipped). `farm.py` is shared: its BB path only gains a popup log line.
+- **LIVE, `scratchpad/farm/tr1_20260925_103028` (c103039, `farm.sh primary --max-cycles 1 -n tr1`):**
+  - rc 0, status ok, Victory 2 stars, dragons 15/15 confirmed, gems 1098 before and after.
+  - Journal = "Troops expended": dragons 15; Lightning 9 = 3 zap taps x 3 points.
+  - **1** `result_text` = the result screen by eye: victory, 78%, loot 539,566 / 282,476 / 4,228,
+    bonus 260,000 / 260,000 / 1,700. Elixir 542,476 and dark 5,928 = `delta` exactly; gold 799,566
+    vs 798,166 = one 1,400 Next fee. 924 ms in the parent, first read of the process.
+  - **3** 18 banner rows = the 18 deploy checks (15 landed, 3 refused), 0 errors, 0 dropped. All 3
+    refusals had the banner; none of the 15 landings did. p50 ~55 ms; the first read in the child
+    was 1,167 ms (model load), off the battle's thread.
+  - **2** not exercised: no recovery modal came up, so no popup rows.
+- **Next, only after measured live agreement:** turn on 1 (replaces the dead VLM label), 2 (refuse a
+  tap on money words), 3 (settle `landed=None` deploy checks).
+
+## HOME VILLAGE: FIRST GOBLIN (SINGLE-PLAYER) ATTACK THROUGH udump (2026-09-25) — VICTORY 100%
+
+Owner: "Let's try doing a goblin attack, and let's use this new skill to see if it can see the layout
+and help us in the attack." udump (`../uiautomation-custom`) read the screen and made every tap; this
+repo's perception ran on udump's native 2392x1080 frame (`lesson.read_bar`, `lesson.badge`,
+`coc.vision.yolo`, `coc.battle.in_battle`). Record + script: `scratchpad/battles/goblin_20260925_085811/`
+(`gob.py`, `rec.json`, `goblin.log`, `scout.png`, `result.jpg`). No repo file changed.
+
+- **Result (result screen, by eye):** Goblin Capital, Victory, 3 stars, 100%, +750,000 gold /
+  +750,000 elixir / +7,000 dark -- the counters moved by exactly that (10,309,624 -> 11,059,624 gold).
+  Troops expended: Hog x2, all 4 heroes (+2 pets), Dragon x14, Lightning x1. The Log was never deployed.
+  Dragons 15 -> 1 in hand = 14 expended, as journalled.
+- **What udump sees in a battle:** text only. It read the level name, the loot, "Overall Damage N%", "End
+  Battle", the count badges (misread: `XIS` = x15, `xlI` = x11), the game's own banners ("You cannot
+  deploy troops on the red area!", "Select a different unit") and the result ("Victory", "You got",
+  "Troops expended", "Return Home"). **It sees no buildings: the layout is invisible to it.** YOLO found 0
+  accepted Air Defenses on Goblin Capital (not checked by eye whether the level has any).
+- **Timing:** vision dumps in one warm process 0.61-0.91 s; udump taps ~0.1 s each (17 in 1.84 s).
+- **Deploy line:** the far left edge, x 50, y 130-700, deployed dragons, hogs and heroes on this level.
+- **Failures:**
+  1. After 2 dragon taps the badge still read 15 (+0.9 s), and `gob.py` called the edge undeployable.
+     The same edge later took 12 dragons. Cause not found: either the count was read too early, or the
+     first two taps didn't land.
+  2. The Log never showed as selected (`hud.selected_card` None at x 756), so it was never deployed.
+  3. My error, outside the script: a manual pass with a hard-coded K.A.N.E. bar. K.A.N.E. was not on
+     this bar, so every card from the Log onward sat one slot left. It fired all 4 hero abilities by
+     accident and cast 1 Lightning on empty ground at (50,500), against "Lightning only on ADs".
+     `read_bar` had the right positions (Log 756, MP 906, AQ 1061, GW 1206, BK 1345, Lightning 1480).
+- udump's covered-window warning fired correctly at the end: a 9:00 alarm heads-up covered the result
+  screen ("23 pixel reads left out ... com.android.systemui").
+- **Fixed (owner: "fix the gob.py dragon check and Log selection"), now `scratchpad/gob.py` +
+  `test_gob.py`.**
+  - **Dragons, root cause CONFIRMED:** the check tapped the line's TOP two points (y 149, 187), which
+    are forest off the map. The count was right (x15 until 15.6 s), and udump agreed with
+    `troop_count` all battle. Red-team: not falsified; "y 225 is forest" rests on the counts, not the
+    image.
+  - **Log:** `hud.selected_card` is not blind to it: 3 of the owner's 5 learn Log presses showed
+    selected. The first check frame was 7-21 ms after the tap, and the fail frame is gone, so the
+    t 9.28 cause is UNDETERMINED. The card-colour signal was ruled out: the Log card stays in colour
+    after a deploy (3 of 5 learn battles).
+  - **The fix:**
+    - Every point is proven by the count, the line tried middle-out.
+    - Past a refusal that comes after a proven point, the line ends (the forest costs 1 tap).
+    - A dead side ends after 5 refusals and falls back to the other side.
+    - Checks wait 0.35 s (as `combat_deploy.attempt`).
+    - A select is looked at twice per tap, 2 taps.
+    - Log/heroes count as placed when the selection moves on; if not, they stay pending and the
+      leftover pass retries them.
+  - **Tests:** 7 new tests; mutants restoring v1's order / single look fail one each. Scratchpad gate
+    (`FARM_PRIORITY=dark ATTACK_MODE=farm ATTACK_PLAN=ad pytest test_*.py`) 256 passed + the known
+    `[70]`; `tests/` 16 passed.
+  - **NOT yet live:** a goblin battle with v2 (the army needs retraining first). Pass = no false
+    edge abort, the Log in "Troops expended", dragons expended = the landings journalled.
+
+## HOME VILLAGE: ROYAL CHAMPION IN SLOT B + LEARN MODE (2026-09-24) — BOTH LIVE OK, APPLY PENDING
+
+Owner: "we changed the hero again and we have a coc promotion so we got some extra troops, which this
+script is not using at all, i want a learning mode where the script will see how i attack and learn
+from it". Owner's choices: learn the NEW cards only (dragon + Lightning plan stays); the script finds
+the base, the owner attacks; add the Royal Champion as a hero now. Home Village files + the cross-base
+launcher (`farm.py`, `farmmenu.py`, `farmevents.py`); no Builder Base or shared-foundation file touched.
+Pre-change copies: `scratchpad/battles/rc_pre/` (attack7, farm, farmmenu, farmevents, CLAUDE/AGENTS.md).
+
+- **What the bar holds now** (c222144 scout view, read by eye + templates): Dragon×15 443, Hog×2 586,
+  **K.A.N.E.×40 (L13) 731**, Log 901, **Royal Champion (L28) 1056**, Archer Queen 1206, Minion Prince
+  1341, Barbarian King 1490, Lightning×11 1625. The Dragon Duke (`hero_b`) is gone: 0.395.
+- **Why they were never used:** no template for the RC, and the ×40 troop IS `reward_kane` (grey
+  0.994-0.995) -- known to `reward_units` only on the post-popup re-read, which never runs now that
+  the Tag Team popups ended (09-22). Both journals (c221914, c222144) have 0 taps at x 1056 / 731; the
+  c222144 result shows RC + K.A.N.E.×15 expended, so those went down by hand.
+- Found, NOT changed: if a popup re-read ever runs, `combat.rewards` deploys ALL 40 K.A.N.E. at the
+  accepted spot, one checked tap each (~1 s per unit).
+- **RC stop-gap:** `cards/hero_b_rc.png` (80×65 face crop at x 1016-1096, y 935, off c222144's
+  `view_mid.jpg` -- a JPEG; recut from a lossless frame when one exists) is hero_b's 2nd signature;
+  `cardset.py` now holds every card template for attack7 AND learn mode. Separation: RC 1.000 on both
+  09-24 scout views, <= 0.463 on the 404 older views (colour, THR 0.75); grey <= 0.578 (relocate .80).
+  `test_cards.py` (3): the no-RC mutant fails 2, and the older-bars test passes on both (as it must).
+  She deploys with the support at group 1 and fires on low health, like the other heroes.
+- **Learn mode:** `scripts/farm.sh` → Mode "Learn" (or `scripts/farm.sh learn elixir`) → `farm.py
+--mode learn` → `learn.py`: village read, entry, the priority loot search, `YOUR TURN`, then NO
+  input until the battle is over. Records `touches.log` (`touchlog.py`: `getevent -t
+/dev/input/event3`, 10-slot touchpanel, raw 10799×23919, ROTATION_90), `frames/` (2 capture lanes),
+  `scout.png`, `result.png`; afterwards BACK home + village read, then `lesson.py` → `lesson.json` +
+  `lesson.webp` (deploys numbered on the scout view). `lesson.py --summary <dirs>` = per card over
+  many lessons (presses, first time, offset from the Town Hall, spread, abilities).
+- Offline: `test_learn.py` 5 (synthetic getevent: mapping, clock offset, drag/pinch, Surrender, the
+  selection state machine). **End-to-end smoke:** c222144's journal fed in as fingers → lesson per
+  card = journal exactly (Lightning 11, Dragon 15, Hog 2, Log 1, hero_a/c/d 1 each, 2 abilities);
+  12/12 bar presses on a card at 0 px; Town Hall [1193, 269] vs attack7's own [1193, 268].
+  On the phone: getevent starts, 0 lines with no touch, the remote process is gone after stop.
+- Gates (after the lesson fixes): scratchpad **238 passed** + the known `test_no_tap_or_pan_goes_into_a_popup_while_deploying[70]`
+  failure (pre-existing, recorded 09-22); `tests/` 16 passed; `bb/test_bb.py` 104 passed, 20 skipped.
+- Capture lanes (village, 12 s each, live): 1 lane 0.58 fps (grab p50 1.80 s), 2 lanes 1.17 fps
+  (gap p50 0.87 s), **3 lanes 1.67 fps (gap p50 0.43 s, max 1.39 s)**, 0 failures → `LANES = 3`. Frames are ~485 KB native q70: ~200 MB a lesson at 2 fps; 42 GB free.
+- [x] **Live 1 (RC), `scratchpad/farm/rc1_20260924_231754` c231806, hands off:** `hero_b` 0.987 at
+      1056 on the live frame; support `hog×2 log hero_a hero_b hero_c hero_d`; abilities 4/4 (RC low_hp
+      0.52 at +13.7 s, MP 0.56, AQ 0.52, BK fallback 60 s). Victory 1★ 85%, +1,110,790 gold /
+      +1,034,937 elixir / +6,707 dark. Troops expended = journal: Dragon ×15 (13 + 2 probes), Hog ×2,
+      Log ×1, AQ, **RC**, MP, BK, Lightning ×11 (9 + 2 spare); no K.A.N.E. (so no hand input).
+- [x] **Live 2 (learn), `scratchpad/farm/learn_20260924_233649` c233701** (owner attacked after YOUR
+      TURN; 3★ 100%, +1,487,412 gold / +1,962,783 elixir / +17,690 dark). 79 contacts, 123 frames, 0
+      failed. **Rotation mapping proven: 16/16 bar presses on a card, median 19 px off centre.**
+      First lesson.py FAILED its self-check: dragons 11 / K.A.N.E. 0 vs Troops expended 15 / 40.
+      Root causes, each measured on this battle: (1) 4 dragons were two-thumb taps overlapping in time,
+      read as a pinch; (2) **hold-and-slide deploys along the finger** -- K.A.N.E. fell 40 -> 8 during ONE
+      4.9 s slide (badge read per frame), which v1 called a pan; (3) the owner zooms 0.86-2.36× (7
+      pinches), which a pan-only camera cannot follow. Fixed: pinch = two MOVING fingers; `sweep` = a
+      moving press whose card's badge fell, units = the badge's fall minus taps (per card, conserved);
+      placements from an ORB similarity fit vs scout.png (0.09 s/frame; kept fits 59-97% inliers, rot
+      <= 0.15°; refused a mid-zoom frame 32/82 and end frames). Also measured: a frame shows the screen
+      0.09-0.21 s after its grab starts (30 + 55 frames bracketing selection changes); the camera glides
+      after a flick (1,706 / 2,858 px/s: 69-410 px off at 0.08-0.68 s, settled by 1.27 s) but not after
+      a pan (5 at <= 1,402 px/s: <= 12 px by 0.04-0.39 s) -- two flicks is a small sample.
+      **After: every card = Troops expended** (Dragon 15, Hog 2, K.A.N.E. 40 in 3 sweeps 33+1+6, Log,
+      4 heroes, Lightning 9), `badge_match` true, 27/34 placed (the 7 others: dragon taps while a flick
+      still glided -- refused, not guessed). Placements checked by eye on the raw zoomed frames (bolts
+      on an AD edge, below an AD, on Infernos: mapped = raw). `test_learn.py` 8 (3 new; the two-thumb
+      test fails on v1 by assertion, `battles/rc_pre/lesson_v1.py`); v1 output kept as `lesson_v1.json`.
+- **What lesson 1 says (ONE battle, not yet a rule):** Lightning 3+3 zoomed in on two ADs (bt 0-4.7) →
+  dragons ×15 spread round the outside (14-20 s) → hogs → **K.A.N.E. swept** (22-30 s; a 4.9 s,
+  ~1,800 px line across the far side above the Town Hall = 33 units, then 1 + 6 near the bottom) →
+  **Log + all 4 heroes at one spot ~750 px below the Town Hall** (32-35 s) → 3 spare bolts on Infernos →
+  **all 4 abilities together, 11.6-13.1 s after landing, at 91-98% health** (the script waits for
+  <= 60%).
+- **2026-09-25, lessons 2-3 + five fixes (owner: "fix all five").** Owner changed heroes AGAIN: Royal
+  Champion out, **Grand Warden back** (MP / AQ / GW / BK). Checked c000121 + c000356 against their
+  result screens and found, each confirmed on the frames:
+  1. **Farming would never deploy the Warden**: slot names put Queen + Warden both in `hero_a`;
+     hud.locate kept the Queen (the Warden crop scored 0.866 at 1336, unused). Fix: `cardset.py` one
+     name per hero (`hero_bk/aq/gw/rc/mp/dd`), crop files unchanged. 404 stored views: 0 lost, 0
+     ambiguous, more found only on the 3 Queen+Warden bars, no wrong-hero score >= 0.6.
+     **Replay a10 + cluster × plan ad + th, before vs after: card taps, abilities, status, dragons,
+     tap count (39/39/40/36) and zaps identical** -- only names changed (replay fixtures renamed).
+     `test_cards.py` 4; the slot-name mutant fails 3. **Live, `scratchpad/farm/gw1_20260925_005606`
+     c005617, hands off:** `hero_gw` 0.871 at 1351 (Queen 0.995 at 1206); support `hog×2 log hero_bk
+hero_aq hero_gw hero_mp`; abilities 4/4 low_hp at 51-56% (Warden +47.8 s). Victory 2★ 76%,
+     +1,228,875 gold / +1,228,212 elixir / +5,071 dark. Troops expended = journal: Dragon ×15 (13 + 2
+     probes), Hog ×2, Log, BK, AQ, **GW**, MP, Lightning ×11 (9 + 2 spare); no K.A.N.E. (no hand input).
+  2. **Owner's Next ended learn mode** (c000020): clouds = "not in battle" ×2 → v1 sent BACK into the
+     next base (−5,600 gold Next cost, nothing deployed). Fix: over = result screen (Return Home
+     button) or village, 2 in a row; a Next moves the lesson to the new base. Stored frames: 431
+     battle, 51 result (all with the button), 20 in-between (result fade-in, clouds) -- 0 misread.
+  3. **Taps on a spent card deploy nothing** (c000356: 12th Lightning after it greyed, 16th dragon --
+     no badge moved) → `dud`. Lightning's x11 badge was unreadable at its template x (None 4/4) and
+     reads at the card centre +28 px (11 on 4/4).
+  4. **A stationary hold deploys several** (1.2 s K.A.N.E. hold = 5; 108/109 taps 0.022-0.105 s).
+  5. **Edge presses** (Lightning at 1698, 73 px from its template x) → reach 100 px.
+     Also: ORB fits with >= 100 inliers kept at any fraction (c000356: 15 frames, 8 s, no pan, 460-593
+     inliers at 0.42-0.48 → same point within 3 px) → c000356 placed 19 → 33 of 37.
+     **After: all three lessons = their result screens card for card**; bar presses 16/16, 12/12, 14/14.
+     `test_learn.py` 13 (each new test fails on the previous lesson.py / has no v1 equivalent).
+     Gates: scratchpad **244 passed** + the known `[70]` popup race; `tests/` 16; `bb/test_bb.py` 104 (+20 skipped).
+- **What 3 lessons say:** SAME every time -- Lightning first (t 0) → dragons ×15 (9-14 s) → Log + all
+  4 heroes as ONE group within ~3 s. VARIES -- K.A.N.E. 40 / 13 / 8 units at 22 / 14 / 47 s (swept 2×,
+  tapped 1×); hogs before or after the heroes; abilities 7.9-42.8 s after landing at 16-98% health.
+- Found, NOT changed (Home Village, `zaps.py`): `al.count_badge(f, lx)` crops x-45..x+66 around the
+  Lightning TEMPLATE x (1625); the card's centre is 1653 and troop_count reads its x11 only at
+  +20..+35. PLAUSIBLE (not tested) cause of the contract's "the badge cannot see the COUNT
+  (0.57-0.69)". Worth a look before any Lightning-count logic.
+- **2026-09-25, lessons 4-5 (c010229, c010452) + four fixes (owner: "fix all four").** Both lessons
+  failed (c010229: 1 bar press of 15, Hog/Log/AQ missing, 15 "unknown"; c010452: dragons 4, 16
+  unknown). **Root cause: the phone was turned round** -- `dumpsys` read ROTATION_270 (orientation 3),
+  09-24 was ROTATION_90; the game flips with the phone even with `accelerometer_rotation 0`, and
+  touchlog v1 hard-coded 90, so every touch was mirrored (bar presses read along the top of the map:
+  e.g. x 739 y 86 → mirrored 1653/994 = the Lightning card). Re-read at 270, both lessons = their
+  result screens. Fixes: (1) `touchlog.Rotation` samples the rotation every 1 s (0.23-0.34 s a read;
+  live smoke 4 reads / 0 failed, rotation 3) → `rotation.log`, each contact maps by the rotation in
+  force; (2) `lesson.infer_rotation` for battles without the log -- the rotation whose bar presses the
+  next frame's white border confirms: 5/5 right (6/6 vs 0/1, 3/3 vs 0/1, 5/5 vs 0/0, 7/7 vs 0/1,
+  6/6 vs 1/4); "lands on a card" could not decide it (13/15 at the WRONG rotation on c010452);
+  (3) a bar re-read sharing < 2 cards keeps the map (c010452's Minion Prince ability had become
+  `unknown@1100`), and a press with no card known is counted apart (`unknown_presses`), never as units.
+  (4) `test_learn.py` 18: both battles added; the 8 new/changed tests fail on lesson v3 + touchlog v1.
+  **All five lessons = their result screens; bar presses on a card 16/16, 12/12, 14/14, 15/15, 11/11.**
+  Gates: scratchpad **249 passed** + the known `[70]` popup race; `tests/` 16; `bb/test_bb.py` 104 (+20 skipped).
+  NOT yet live: a learn battle with `rotation.log` recording (the sampler itself ran live).
+- **What 5 lessons say:** SAME every time -- Lightning first → dragons ×15 (10-14 s) → Log + all 4
+  heroes as ONE group within ~4 s. K.A.N.E. right after the dragons in 4 of 5 (14-23 s; once 47 s),
+  units 40 / 13 / 8 / 24 / 40, swept or tapped (c010452: 40 single taps). Hogs mostly just before the
+  Log/hero group. Abilities: no pattern yet (2-48 s after landing).
+- [ ] **Apply:** after >= 3 lessons, `lesson.py --summary` → a K.A.N.E. (and RC) placement + timing
+      rule → owner's go → attack7 (battle gate: replay numbers + a live battle).
+
+## CROSS-BASE: farm.py TERMINAL + SAFE CTRL-C + LAUNCHER (2026-09-24) — LIVE BATTLE CHECK PENDING
+
+Cross-base supervisor only: `scratchpad/farm.py` edited, new `scratchpad/farmtui.py` (UI + child
+runner) and `scratchpad/farmevents.py` (child line → display line). Neither runner, no Home Village,
+Builder Base or shared-foundation file touched; `farm.jsonl` rows unchanged except two new halt
+reasons. Pre-change copy: `scratchpad/battles/farm_tui_pre/farm.py`.
+
+- **Terminal:** one short line per event, a status bar pinned at the bottom (battle · phase · timer,
+  resource bars against the 90% line, gain/h + time to the line), and a battle table (last 6 + total)
+  after every battle, full table on exit. Raw child output → `<out>/<base>/<tag>/child.log`, shown
+  lines → `<out>/session.log`, so `| tee` is no longer needed. Piped: plain lines, no escape codes.
+- **Before/after**, replaying the stored runs (`farm.jsonl` + `console.log`, run1 excluded: its jsonl
+  holds 210 battles vs 14 in its console log) through the renderer, `replay_tui.py` in the session
+  scratchpad: **193 → 31 terminal rows per battle** at 160 columns (33 battles), longest line
+  12,672 chars → wrapped at the width; 0 display errors, 0 raw JSON dumps shown.
+- **Ctrl-C (owner: "safe stop"):** the child runs in its own session, writing to a file, not a pipe.
+  First Ctrl-C or `s` = stop after this battle (in-memory, never creates `scratchpad/STOP`);
+  second Ctrl-C = kill the child, halt "abandoned mid-battle". `test_farm.py` +5 tests (8 pass); the
+  first-Ctrl-C test FAILS on a mutant whose child shares the group (`rc=-2`, the old abandonment).
+  Real tty (tmux, fake child replaying speed2's output): 1× Ctrl-C → child.log byte-identical to the
+  full stored battle, halt after it; 2× → child killed at t=27.2; terminal restored (`icanon echo`).
+- Gates: scratchpad 218 passed + the known `test_no_tap_or_pan_goes_into_a_popup_while_deploying[70]`
+  failure (unrelated, recorded below); `bb/test_bb.py` 104 passed; `tests/` 16 passed.
+- **Launcher (owner: "make a launcher script … options to select … good tui"):** `scripts/farm.sh` →
+  `scratchpad/farmmenu.py`. Preflight panel (phone via `coc.cli status`, screen, battery vs
+  `MIN_BATTERY_PCT`, a second driver in `ps`, caps.json, STOP flag, last session), then an arrow-key
+  menu: mode (farm / ranked) → priority (primary / gold / elixir / dark, thresholds read from `loot.MINS`)
+  → plan (th / ad) → battles (until 90%, 1/3/5/10, custom) → Start / Dry run / Rename / Quit; `execv`
+  into farm.py. `scripts/farm.sh gold --max-cycles 3` skips the menu. Launch to menu 0.82-0.88 s (3 runs;
+  0.6 s is `coc.cli status`). Before: `python3 -u scratchpad/farm.py scratchpad/farm/<name> --priority
+gold --max-cycles 1` typed with a hand-picked dir (98 chars in the 09-21 record); after:
+  `scripts/farm.sh` + 4 keys. `test_farm.py` 10 passed (+2: driver regex, shortcut parsing).
+- **Live (2026-09-24 10:25, real tmux terminal, phone reachable, CoC in front):** menu Farm → Elixir →
+  TH → 1 battle → Dry run: preflight green, farm.py read the Home Village (gold 17.7%, elixir 14.8%,
+  dark 46.7%), `would run attack7.py`, EXIT 0 in 7 s, no child spawned. Quit starts nothing (no process,
+  no dir); STOP flag offered and removed only on choice; a fake second driver → exit 2.
+- [ ] **One live battle through the launcher**, with a Ctrl-C mid-battle -- the owner's go needed (it
+      is real play). The dry run above covers the phone path up to the battle.
+
+## BUILDER BASE: GROUND ARMY, STAGE 2 DRIVEN, CARTS + ABILITIES (2026-09-22/23)
+
+Builder Base only. Files: `scratchpad/bb/attack1.py`, `bbspots.py`, new `bbcards.py`, `test_bb.py`.
+No Home Village or shared-foundation file touched. Live on `EQEMVG6HSOUO9DT4`; stopped at the
+owner's request ("let's not do battle right now") — the owner then ran Home Village battles.
+
+**Why battles were lost fast (measured on all 30 stored dragon runs + c1):** half the Baby
+Dragons dead by T+24-35 s, all by T+30-50 s, the battle over ~T+45 of a 120 s clock. The six
+dragons land spread but converge into ONE clump within ~10 s and take splash together (c1 frames:
+4 of 6 greyed by T+30). The "hero dies at T+12.7" in every log is an artefact: the T+10 ability
+tap greys its card.
+
+**Army changed in game** (Choose Army, tap 160,780; Boost Heroes/Army buttons = gems, fenced off):
+BM + 2 Power P.E.K.K.A + 2 Cannon Cart + 2 Night Witch, reinforcements 2 Baby Dragon.
+Electrofire Wizard is LOCKED on this account. Run it with
+`BB_DOCTRINE=punch BB_TANKS=1,2 BB_NO_ABILITY=3,4 [BB_ABILITY=smart]`.
+
+| battle         | army / code                     | result                                  | gold                              |
+| -------------- | ------------------------------- | --------------------------------------- | --------------------------------- |
+| c1             | dragons, spread (baseline)      | 2★ 61%                                  | +74,000                           |
+| c2             | punch                           | 3★ 100% — **stage 2 opened and wasted** | +114,000                          |
+| c3             | punch                           | 2★ 76%                                  | +74,000                           |
+| punch1 c233805 | + reinforcement stage-2 trigger | **3★ 200%** (stage 2 driven)            | +176,000 (+270k/+270k star track) |
+| punch1 c234244 | same                            | 2★ 79%                                  | +75,000                           |
+| punch1 c234649 | same                            | 2★ 66%                                  | +75,000                           |
+| punch2 c235240 | + carts not tapped              | **3★ 147%**                             | +115,000                          |
+| punch2 c235701 | same                            | 2★ 65%                                  | +75,000                           |
+| punch2 c235956 | same                            | 1★ 61%                                  | +30,000                           |
+
+Stars: dragons n=20 mean **1.70** (0★ 3, 3★ 3) vs ground n=8 mean **2.25** (0★ 0, 3★ 3).
+SUGGESTIVE, NOT PROVEN — the contract asks ~16 per arm; base difficulty dominates. Gems 1,192
+unchanged throughout; BB gold 717,995 → 2,034,359+.
+
+### Fixed, each with its measurement
+
+- **Stage 2 was missed whenever nothing died in stage 1.** The only trigger was a card going
+  dead→alive. Stage 2 actually carries SURVIVORS over as live cards and fills reinforcement slots
+  7-8. New trigger `bbspots.reinforcements_in` (both slots hold a card, 2 reads): replayed over
+  every stored frame of 36 battles — empty slot V 45-70/std 9-14, card V 135-240/std 26-65, result
+  screen V ~20; **0 hits in any one-stage battle or result frame**, hits in every real stage 2.
+  It shows **4 of 6 historical real stage 2s were wasted** (b2, b12, c2, run1/c164916). First live
+  use: c233805 → 200%.
+- **Cannon Carts "stale" (red "?" on the card, 40-75 s idle every battle):** the cart card tap is a
+  STATIONARY-MODE TOGGLE, not a free ability. Right after the T+10 pass both cart cards turn red
+  and a range circle appears on each cart; they plant at the edge where dropped and never move
+  again. `BB_NO_ABILITY=3,4`: cart "?" frames 13-30+/battle → **0** in all 3 punch2 battles.
+- **Deploy proof threshold was dragon-calibrated.** Landed P.E.K.K.A card diff 37.3/37.6, Night
+  Witch 31.6 — IDENTICAL to 0.1 on every battle (a fixed UI change); in hand ≤ 11.8. Under punch the
+  threshold is 25; before this every battle "retried" four landed units.
+- **Stage 2 had no per-card deploy check** (c235240: 1 of 2 reinforcement dragons expended). Added,
+  with one retry. NOT yet run live.
+- **Frames every review pass** (~2.4 s, was every 3rd = 9 s gaps). `screenrecord` is blocked on this
+  Android 16 phone (permission denied / 0 bytes), so dense grabs are the recording.
+
+### 2026-09-23 session 2 — live, `BB_DOCTRINE=punch BB_TANKS=1,2 BB_NO_ABILITY=3,4 BB_ABILITY=smart`
+
+| battle         | code                               | result                                          | gold     | whole battle |
+| -------------- | ---------------------------------- | ----------------------------------------------- | -------- | ------------ |
+| smart1 c002506 | + closer-drop planner (inner)      | 1★ 66% — 3 units refused ("red area")           | +30,000  | 217 s        |
+| smart1 c002901 | same                               | 2★                                              | +75,000  | 133 s        |
+| smart1 c003207 | + clip band                        | 2★ 50% — points INSIDE the walls, wiped by T+40 | +75,000  | 139 s        |
+| smart1 c003512 | same                               | 2★                                              | +75,000  | 146 s        |
+| t1             | planner reverted (`plan`, cap 200) | 3★ stage 1 + stage 2 driven                     | —        | 223 s        |
+| t2             | + scouting deploy                  | 1★ 65%                                          | +30,000  | 85 s wall    |
+| fast1 c010154  | all                                | **143%** (3★ + stage-2 star)                    | +127,000 | 141 s        |
+| fast1 c010435  | all                                | 1★ 72%                                          | +30,000  | 85 s         |
+| fast1 c010619  | all                                | 2★                                              | +75,000  | 101 s        |
+| fast1 c010819  | all                                | 2★ 75%                                          | +75,000  | 81 s         |
+
+Ground arm (all punch battles, n=18): 0★ 0 · 1★ 4 · 2★ 10 · 3★ 4 → **mean 2.0**; dragons n=20 mean 1.70.
+
+- **SMART ABILITIES, live:** hero fires at level 3 or when about to die (c010154 stage 2: level 3 at
+  hp 0.89); troops fire only after their health drops. Proven landed by the health bar.
+- **DEPLOY PROOF = the card's health bar** (`attack1.landed`): 0.0 in hand on 16/16 prep frames;
+  c002506 read landed 1,3,5 / refused 2,4,6 exactly. The image diff could not separate a landed
+  Night Witch (31.6) from a refused-but-selected one (32.7). Stage 2 is now checked + retried too.
+- **CLOSER-DROP PLANNER FAILED — reverted, `bbspots.punch_plan` kept but UNUSED.** Texture reads the
+  red no-deploy strip as open ground (c002506), and where a base overhangs the tap band (y 250/790)
+  the first open ground on a ray is INSIDE the walls (c003207 — legal in BB, suicidal). A clip band,
+  a texture hull (60-100% of the screen) and an outward wall test (median 990 px) all failed.
+  Punch uses `plan(..., sep_cap=200)`, the punch1/punch2 planner. Do not retry without a real
+  red-area / base-outline detector — this is where a Builder Base YOLO model would earn its keep.
+- **TIME (owner: "drop the troops in the waiting time"):** matchmaking is ~6 s; then a
+  **"Battle starts in: 54s" scouting countdown** shows the base with cards in hand and NO Surrender
+  button, so `in_bb_battle` read False and every battle waited ~55 s. `bbcards.scouting()` (cards in
+  hand — in-hand headers sit ~25 px lower, y 885-925 — + no Surrender + base mass): 58/63 t1 wait
+  frames, 0/166 village/dialog/result frames, 0/588 battle frames. Once two settled frames agree
+  (the countdown opens with a zoom), the HERO alone is dropped; that starts the battle. **Find Now! →
+  battle 62-67 s → 7.4-9.0 s.** End: result screen's Return Home ends the wait on the first read
+  (43/44 result frames, 0/212 battle frames), result + return are polled not slept (return 1.6-3.2 s),
+  review pass 1.5 → 0.8 s sleep. Whole battle: **195-240 s → 81-141 s**.
+- **GEMS — `farm.py` spent 3 (777 → 774) and is fixed.** A failed resource read sent `_dismiss` to
+  tap two unknown lone green buttons, (1419,631) and (1221,720), after c003207. A lone green button is
+  now tapped ONLY within 60 px of the Star Bonus "Okay" (1198,857); anything else is refused and
+  its frame saved to `<out>/recover/`. `test_farm.py` test fails on the old code, passes on the new.
+  The earlier 1,192 → 777 drop happened between 18:51 and 18:55 while the owner's Home Village run
+  had the phone — NOT during a Builder Base batch.
+- **The read failure itself:** gold 2,382,275's leading "2" sits on the yellow storage-fill edge and
+  scored 0.770 (runner-up 0.452) — refused, as designed. Fixed by adding that frame as a labelled
+  sample (`assets/digits/samples/bb_20260923_goldbar.png`) and rebuilding the atlas (SHARED
+  foundation): `tests/` 16 passed; across 45 stored BB village frames exactly one read changed (that
+  frame, now correct). Old atlas saved in the session scratchpad.
+- `scratchpad/test_battle_clock.py::test_no_tap_or_pan_goes_into_a_popup_while_deploying[70]` (Home
+  Village) FAILS — with the OLD atlas too, so it predates this work. Not touched (HV file).
+- fast1 halted after battle 4: the phone was found on the HOME VILLAGE with the Clan Games panel open
+  and no tap in any journal — assumed owner input (see memory "user touches phone"); nothing tapped.
+
+### fast2 (2026-09-23, 12 battles, all fixes, unattended via `farm.py`)
+
+Gold per battle (stars read off the payout: 30k = 1★, 75k = 2★, 115k = 3★, more = stage-2 stars):
+181,000 (200%) · 75,000 · 76,665 · 75,000 · 75,000 · 127,000 · 147,000 · 75,000 · 75,000 · 30,000 ·
+181,000 (200%) · 30,000 = **+1,147,665 gold**. Stage-1 stars: 3★ 4 · 2★ 6 · 1★ 2 · 0★ 0 → mean **2.17**;
+stage 2 reached in 4 of 12, two of them perfect 200%. Battle time 86-226 s, mean **139 s**. Gems
+774 before and after every battle; no recovery tap was made (no `recover/` dir).
+Ground arm since the fixes (fast1 + fast2, n=16): 34 stars, mean **2.13★**, 0★ 0 (dragons n=20: 1.70).
+
+### Next
+
+- [ ] More batches to firm up the army comparison; try other armies against the same code.
+- [ ] `OPENCODE_API_KEY` from credvault returns 401 — results are read by eye off `r0_result.png`.
+- [ ] Builder Base YOLO / red-area detector — needed before any closer-drop planner is retried.
+- [ ] Stage-2 hero: the card offers a swap (BM ↔ Copter); the runner always keeps the BM.
+- [ ] Early deploy drops only the hero; dropping the whole wave during scouting would save ~2 s more
+      but the scouting cards carry green swap badges — measure what a card tap there does first.
+
+## HOME VILLAGE: TH PLAN IN FARMING + HERO ABILITIES + SPARE ZAPS (2026-09-22)
+
+Owner: "add this to normal battle and test there first". `farm.py --plan th` (default) = Town Hall
+first + 3 ADs x 3 bolts in farming too; `--plan ad` = the old plan. Ranked always th.
+
+- Live thplan1 (2 battles): 3 stars 100% (+1.50M gold), 2 stars 90% (+1.86M). TH found both times.
+- **Hero abilities on low health** (owner): `hud.hero_hp` reads the health bar above a deployed hero
+  card (rows 853-875, 106 px, graded on ranked2's 1 fps frames). Fire on ONE read <= 0.6 (glitches
+  after landing only read HIGH), else 60 s after landing. herohp1: 5/12 fired -- root cause: the bar
+  re-read after a reward popup dropped deployed heroes + Log from `cards` (their art no longer
+  matches), so their positions were lost. Fix `Combat._carry`: when all re-matched cards moved by the
+  same amount (+145 px, c055339) the unmatched ones move too. herohp2 b1-b2: **8/8 fired** (5 low_hp
+  at 50-59%, 3 fallback at >= 90%). Mutation: the carry test fails on the pre-fix file.
+- **Spare zaps** (owner): scouting now records Infernos + X-Bows (TH plan: one deploy_targets call,
+  3 graded classes). The 2 kept bolts go on the Inferno nearest group 1, SPARE_AFTER_S = 10 s after
+  it lands, else the nearest X-Bow (owner's choice). The "Inferno locked on" beam detector is NOT
+  built: a bright-yellow ring score separated beam 2,792-4,670 / idle <= 2,308 on dark ranked2 but
+  bright ranked1 idle frames read 5,000-9,000 (walls/grass) -- next: difference against the scout
+  view at the same camera. Replay (a10): 3 Infernos + 4 X-Bows found, 9 AD bolts + 2 on the Inferno.
+  NOT yet live.
+- **Support fix (owner-approved):** `Combat.support_spot` -- the accepted spot if `legal`, else the
+  newest point where a unit actually LANDED; the review loop retries support (<= 2, 6 s apart).
+  Unit test on c060855's geometry. Live spare1 (3 battles, +1.15M / +3.15M / +1.73M gold):
+  spares went on a real Inferno twice (crop checked), abilities 10/12 fired (7 low_hp, 3 fallback).
+  b3: zap_all stopped by the existing "Lightning card changed during a pan" guard (no bolts), then
+  the child died on `CaptureError: capture network deadline exceeded` (wireless adb) mid-battle; farm
+  waited the battle out.
+- **Missing ADs (owner: "every base has 4"):** 228/278 stored battles found 4, 37 found < 4 (9 found
+  0), 13 found > 4 (merge misses). On the 37 short bases, low-confidence AD boxes seen in >= 2 views:
+  42, graded by eye ~29 true / 13 false -- confidence does not separate them (false 0.43-0.78, true
+  0.51-0.79), nor does NCC against the same base's confirmed ADs (true -0.17..0.95, false 0.03..0.36).
+  Owner approved a VLM yes/no on those crops (Zen glm-5.3-flash). **BLOCKED: every call 401
+  AuthenticationError** with the vault's OPENCODE_API_KEY -- also why farm's `result` is always None.
+- **Found, not fixed (owner to decide):** herohp2 c060855 Defeat 15%: dark base, 0 ADs detected, and
+  hogs/log/4 heroes NEVER deployed -- `spot_ok` rejects the accepted dragon spot because two refused
+  probes sit within REFUSE_RADIUS 45 px of it (30/40 px), and a single dragon group never retries
+  support. 1 of 282 stored battles. Also c060109 ended `resources_unstable` (HUD still counting).
+
+## HOME VILLAGE: RANKED BATTLE MODE (2026-09-22)
+
+Owner: ranked = trophies/league (farming = loot). Goal stars + damage; ONE attack per command;
+frames captured. `python3 -u scratchpad/farm.py <out> --mode ranked`.
+
+- Entry (`home_waits.enter_ranked`), every tap only on a recognised screen, native PNG per poll:
+  Attack -> ranked card Find a Match (yellow 0.72 vs 0.00 when it says Join Tournament) -> army
+  review twice (green+red X; 61/67 settled frames, 0 false +) -> Attack! -> **"Confirm Attack"
+  dialog** (title template 1.00 settled / <= 0.27 on 195 others) -> its Attack! (1383,721) spends
+  the attack -> up to 60 s for the battle. No Next, no loot search, recorder every 1 s.
+- **ranked1 incident:** the dialog was unknown; the entry correctly stopped after 30 s, then farm's
+  `read_after_battle -> recover() -> _dismiss` tapped the dialog's green Attack! and spent the
+  attack (owner had approved spending 1). The base was live, nothing deployed; attack7 was run with
+  `ATTACK_RESUME=1` (attack an already-live battle). Result: **Victory 2 stars 81%, +26 trophies**,
+  757,621 gold, 960,000 elixir; expended dragon x15, hog x2, Lightning x11 = journal.
+  Fix: ranked mode never calls `recover()` (startup, read failure, post-battle, failed child).
+- **ranked2 (verified live, owner-approved):** entry recognised every screen incl. the Confirm Attack
+  dialog (4.7 s, 5.3 s), spent the attack by its own tap, battle up at 7.9 s. Victory 1 star 86%,
+  +14 trophies, 601,425 gold / 1,047,419 elixir. Only 1 hog scripted -- the owner dropped the 2nd.
+  Cause: the hog loop checked `dimmed()`; this dark-scenery base reads play-area V 85 < DIM_V 95
+  with no popup (ribbon False). Fixed: the loop checks the reward ribbon (`pick(f)`), as the popup
+  contract already says. Offline: dark frames -> no popup, a stored real popup -> popup. Not yet live.
+- Ranked battle HUD: "Surrender" (not End Battle) in the same place; `in_battle` read it (resume1).
+- **Ranked plan v2 (owner: research points 1+2, 2026-09-22; ranked only, farming unchanged):**
+  - Town Hall first: `townhall.py` reads YOLO's unexposed `th` class locally (shared `yolo.py` not
+    edited): LARGEST box, conf >= 0.60, centre y 130-840 -> **236/242 picks true, 8/250 no pick**
+    (graded by eye on 250 stored scout views; the top box alone was ~13 wrong, HUD + look-alikes).
+    5-view vote: 244 bases picked, 233 in >= 2 views. Group 1 + hogs/log/heroes at the TH, group 2
+    at the AD farthest from it. ranked2 replay: the TH14 sat at the bottom corner and neither old
+    group went near it (1 star 86% = 14 tr); a TH star at 86% = 28.
+  - Zaps: 3 ADs x 3 bolts; the 2 spare only top up an AD still standing (L13+ survives 3 by 70 HP),
+    the rest are KEPT in hand (`zap_spare_kept`); a 4th AD only replaces a planned one already down.
+  - Gate: 168 passed (+ the known popup race); the 2 ranked replay tests FAIL on
+    `battles/ranked_th_pre/` (11 bolts, no town_hall). `attack7.py` opening moved to
+    `home_waits.start_battle` (597 -> 566 LOC, cap 600). NOT yet live.
+
+## HOME VILLAGE: REWARD TROOPS NOT DEPLOYED (2026-09-22)
+
+Owner: reward-popup troops (Yeeter, "Undertaker") were not deployed; they deployed them by hand.
+
+- "Undertaker" is the **Yeti Undertaker** = `reward_yeti` (popup label reads "Yeti Undertaker"); it
+  already had templates. Across 320 stored popups the only untemplated troop is **"Giant Giant"**
+  (never picked, never deployed) -- not done.
+- Root cause: `combat.service()` read the troop bar ONCE per popup, ~1.8 s after it. A picked troop
+  reaches the bar 1.7-2.7 s after the pick, so that read missed 3/3 (c042120 YEETer 0.737,
+  c042432 Yeti 0.705, YEETer 0.598; threshold 0.80) and nothing read again. Kane in c001539 only
+  worked because a second pick triggered a second read.
+- Fix: `combat_deploy.REFRESH_S` = 8 s of re-reads after each popup (ambiguous bar still blocks).
+  `test_reward_refresh.py` 3 passed; the arrival test FAILS on `battles/reward_refresh_pre_fix/`.
+- Live `scratchpad/farm/reward1` (3 battles, no hand input): first read missed again every time
+  (0.737, 0.669, 0.646), the next read found the card (0.995), and reward_deploy landed 2/2, 2/2,
+  1+1/1+1. Result screens: YEETer x2, YEETer x2, Yeti x2 -- equal to the journal.
+
+## HOME VILLAGE: BATTLE-TO-BATTLE DEAD TIME + 2nd HOG (2026-09-22)
+
+Metric: previous battle `battle_over` -> next battle's first scan view (`view_mid.jpg`), minus
+Next-clouds time. Baseline run3 (0-Next battles, n=5): **median 64.9 s** (61.7-65.0).
+After, live `farm.py scratchpad/farm/speed2 --priority gold --max-cycles 3`: **34.1 s, 30.5 s**.
+
+- farm.py (cross-base; Home Village path only, BB read unchanged): HV reads use raw capture +
+  `stable_resources` (live: 2.14 s vs 12.89 s for sleep 4 + PNG, identical values), and the
+  post-battle read is carried as the next cycle's read. child exit -> next spawn: ~24 s -> 1.7-1.9 s.
+- attack7 entry: `home_waits.enter_battle` polls instead of sleeping 3.5+6+13 s; tap deadlines
+  unchanged (no detector for the army-review screen yet). Child start -> scouting 28 s -> 15.5-16.4 s.
+  The army review appeared 3/3; frames saved under `<battle>/entry/` to cut a detector from —
+  that would save ~6 s more. Remaining: over -> child exit ~11.8 s (reward-popup 6 s + to_village).
+- Hog x2: second hog tapped only after a fresh frame shows the card alive (a spent card
+  auto-selects Lightning). Live 3/3: journal 2 hog deploys; c042432 result "Hog x2, Lightning x11"
+  = 11 zap taps. Gate: `test_both_hog_riders_deploy` fails on pre-fix code.
+- **Open, pre-existing:** `test_no_tap_or_pan_goes_into_a_popup_while_deploying[70]` fails —
+  a dragon tap races a popup opening between frame and tap. Pre-fix code fails the same at
+  `--popup-at 69`; the hog grab shifted timing by 1.0 s. Not fixed (awaiting owner).
+- **Open:** farm `recover()` read the Attack panel (Find a Match) as `battle_live` (speed1 crash).
+- Pre-fix copies: `scratchpad/battles/farm_speed_pre_fix/` (scratchpad is not in git).
+
+## HOME VILLAGE: MEASURED LATENCY OPTIMIZATION (2026-09-21/22)
+
+User requested snappier networking and fewer sleeps. Applied perf skill. Scope:
+Home Village only, no shared-foundation/Builder Base edits, no commits or pushes.
+Physical phone EQEMVG6HSOUO9DT4, native2392x1080/density360, charging (37% at live
+entry). User's c234041 run had no running controller or saved battle frames when
+checked; did not claim it as validation. Controlled c235500 below completed.
+
+Implementation:
+
+- New home_capture.py uses lossless native raw capture + checked adb pull instead
+  of PNG for this attack process, including battle navigation via scoped binding.
+  Unique host files, checked command success, exact header/format/payload validation,
+  two attempts within ONE 8s total network budget, no stale/PNG fallback. Capture
+  metrics go in rec.capture; finish cleans this process's remote scratch frame.
+- home_waits.py requires two identical fully readable resource HUDs. Replaces the
+  unconditional 4s wait plus redundant capture before and after battle; unknown or
+  changing values cannot become a loot result. Bounded iterations/deadline.
+- Camera postgesture settle reduced 0.9 -> 0.6s after physical measurement.
+  Immediate capture left14–29px residual movement; .2s left6–7px; .4s left up to6px
+  with full600px/380px gestures; .6s left <=1px on all four directions. Kept troop,
+  selection, Lightning1.5s and result-settle delays: fresh frames alone do not prove
+  readiness. Historical queued deployments and mid-explosion detection prohibit
+  blindly removing these waits.
+- replay_a10.py patches the new transport for deterministic replay; nine new
+  test_home_latency.py cases cover corrupt/partial/portrait/format failures, failed
+  pulls/captures, the total deadline, resource stabilization and bounded failure.
+  Physical grey-stone boundary regression and missing-boundary spell guard retained.
+
+Reproduce read-only native benchmarks from root:
+
+- `python3 scratchpad/farm/perf_20260921/benchmark_capture.py`
+  7 samples/method: raw file-pull p50/p95 1.076/1.270s; raw pipe2.673/2.810s;
+  gzip pipe6.824/7.104s. Direct/gzip pipelines rejected as slower.
+- `python3 scratchpad/farm/perf_20260921/benchmark_pull.py`
+  any compression .970/1.110s; lz4 1.092/2.097s; zstd .930/1.100s (7 each).
+  PNG6.648/6.892s (3). Kept negotiated any; no meaningful compression-only claim.
+- `python3 scratchpad/farm/perf_20260921/benchmark_readiness.py`
+  SAME complete Home Village preflight (classify + stable/readable resources),
+  3 paired before/after samples, native2392x1080, identical resource values all6:
+  **p50 20.003 -> 2.193s**, **p95 20.716 -> 2.399s**, ~9.12x/89% faster.
+  New capture alone p50 .995/p95 1.253s, six frames, zero failures.
+- `python3 scratchpad/farm/perf_20260921/benchmark_full_pan.py`
+  then `benchmark_pan_confirm.py` in the same directory measures full-size gestures.
+  These move the Home Village camera; do NOT run alongside an active controller.
+  JSON evidence is beside each script: capture_baseline, pull_algorithms, readiness,
+  pan_baseline, full_pan, pan_confirm. These are sub-operation speedups, not a claim
+  that the game's fixed battle duration or the entire farmer is nine times faster.
+
+Regression gate: cwd scratchpad:
+`PYTHONPATH=.. /Users/arnabbiswas/.pyenv/versions/3.13.2/bin/python3 -m pytest test_battle_clock.py test_spots.py test_farm.py test_optimization.py test_boundary_recovery.py test_home_latency.py -q`
+->198 passed; root `python3 -m pytest tests/ -q` ->15 passed; **213 total**.
+Replay cwd scratchpad, before:
+`PYTHONPATH=.. FARM_PRIORITY=dark /Users/arnabbiswas/.pyenv/versions/3.13.2/bin/python3 replay_a10.py farm/perf_20260921/replay_before --code farm/perf_20260921/pre_fix`
+After: same without --code, output farm/perf_20260921/replay_after.
+Same-input first dragon **7.6s earlier** (137.4 ->145.0s battle time left), both15
+landed/11 Lightning/zero off-AD or after-end taps. Replay has modeled capture timing;
+use the paired physical benchmark above for actual end-to-end read latency.
+
+Real-phone verification (full army visually checked before entry):
+`python3 scratchpad/farm.py scratchpad/farm/perf_20260921/dry --priority gold --max-cycles 1 --dry-run`
+then `python3 -u scratchpad/farm.py scratchpad/farm/perf_20260921/live --priority gold --max-cycles 1 --switch off`.
+Evidence: live/home_village/c235500/rec.json and settled result.png.
+**206 captures, zero failures, p50 .929s / p95 1.250s; 15 confirmed dragons by42.7s;
+zero refused drops; 9/9 measured pans; abilities7.14–7.37s; boundary ready from5
+views; median recorder interval4.9s.** Result confirms15 dragons and11 spells used,
+journal11 zap taps. 57%/one star; netGold+1,009,735/Elixir+277,880/Dark+1,864.
+Resources stable and gems unchanged743. Controlled run ended; no farmer active.
+Root metrics command:
+`python3 scratchpad/farm/analysis_20260921/analyse.py scratchpad/farm/perf_20260921/live/home_village/c235500`
+
+OPEN FINDINGS (reported, NOT silently fixed as part of performance):
+
+- Local model falsely labels a GOLD STORAGE as AD in view_right, native(1346,524),
+  confidence .826, yielding world(1736,494) and a fifth AD. Three Lightning were
+  cast there. Reproduced by deploy_targets on the saved frame; overlays visually
+  confirm the false positive. The other four targets agree across views. No model
+  or targeting thresholds changed. Correct spell COUNT is not correct TARGETING;
+  this live run does not validate AD-only accuracy or a win-rate improvement.
+- K.A.N.E. reward correctly chosen over Dark, but bar recognition score .654 misses
+  the .80 gate; awarded unit remains undeployed. Prior active-card crop did not
+  generalize to this live appearance. Needs separate recognition investigation.
+- The earlier grey-stone correction is covered by native regression frames; this
+  live run used grass scenery. Unknown-boundary fail-closed/recovery paths remain
+  replay-tested. Do not imply every scenery or every rewarded card was tested live.
+
+## HOME VILLAGE: BOUNDARY CORRECTION — LIVE CHECK BLOCKED (2026-09-21)
+
+User authorized fixing the confirmed grey-stone deployment regression. Implemented
+in Home Village files only; no Builder Base or shared-foundation edits, no commits.
+Do NOT call this fully verified: controlled live attack was blocked by the existing
+battery interlock, **24% discharging <25% minimum**. Resume once phone is charging.
+Physical phone EQEMVG6HSOUO9DT4 was reachable; density360/native2392x1080 verified;
+army visually checked (15 dragons, Hog, Log, four heroes, 11 L10 Lightning).
+
+Changes:
+
+- deploy_boundary.py adds narrow red-line contrast against both adjacent flanks;
+  no green-terrain requirement for this branch. Retains brown-on-grass detection,
+  diagonal-line geometry, multi-view hull, 48px clearance and fail-closed unknowns.
+- attack7.py reacquires boundary once at measured scout positions BEFORE spells.
+  If still missing/camera unknown, sends no troop/spell taps, waits without battle
+  input for the result, returns home only once no longer live, exits status
+  `boundary_unavailable` / code3 instead of pretending success. Saves retry PNGs.
+- test_boundary_recovery.py covers native grass/stone frames, no-boundary spell
+  protection, and successful recovery. replay_a10.py exposes missing/recover modes
+  rather than always supplying a valid synthetic boundary.
+
+Measured command (root):
+`python3 scratchpad/farm/boundary_fix_20260921/audit.py`
+Before: append `scratchpad/farm/boundary_fix_20260921/pre_fix/deploy_boundary.py`.
+Results saved as before.json / after.json alongside script. Grey-stone c232149:
+**0 -> 78–138 detected endpoints per view**, usable boundary false -> true;
+**0 -> [4,33,25,4,18] candidate points** across mid/up/down/left/right.
+Candidates are NOT proof of accepted placements. Original grass c231622 still
+has a usable boundary and candidates in all five views. Detected-line overlay was
+visually checked against the compressed native stone scout.
+
+Cwd scratchpad commands:
+
+- `PYTHONPATH=.. /Users/arnabbiswas/.pyenv/versions/3.13.2/bin/python3 -m pytest test_battle_clock.py test_spots.py test_farm.py test_optimization.py test_boundary_recovery.py -q` -> **189 passed**.
+- Root: `python3 -m pytest tests/ -q` -> **15 passed**, total **204**.
+- `PYTHONPATH=.. ATTACK7_CODE=farm/boundary_fix_20260921/pre_fix /Users/arnabbiswas/.pyenv/versions/3.13.2/bin/python3 -m pytest test_boundary_recovery.py -k missing_boundary -q`
+  fails previous runner: returned ok instead of boundary_unavailable; corrected
+  runner passes. Snapshot includes card asset symlink so failure exercises code.
+- `PYTHONPATH=.. FARM_PRIORITY=dark /Users/arnabbiswas/.pyenv/versions/3.13.2/bin/python3 replay_a10.py farm/boundary_fix_20260921/replay_missing_before --code farm/boundary_fix_20260921/pre_fix --boundary-mode missing`
+- Same after: `PYTHONPATH=.. FARM_PRIORITY=dark /Users/arnabbiswas/.pyenv/versions/3.13.2/bin/python3 replay_a10.py farm/boundary_fix_20260921/replay_missing_after --boundary-mode missing`
+  Missing boundary: **11 -> 0 Lightning spent**, **ok -> boundary_unavailable**,
+  no exit during live battle. Recovery scenario retains all 15 dragon deployments.
+
+Phone actions: requested run3 stop via existing scratchpad/STOP (initially absent).
+A battle had already passed the check; c233046 finished normally, supervisor logged
+halt STOP at 1790013943.3. Moved owned flag to
+`scratchpad/farm/boundary_fix_20260921/STOP.consumed` only after supervisor exited.
+No active farmer remains. Do not automatically resume unlimited farming.
+Root dry run passed at25%:
+`python3 scratchpad/farm.py scratchpad/farm/boundary_fix_20260921/dry --priority gold --max-cycles 1 --dry-run`
+Live attempt after army check:
+`python3 -u scratchpad/farm.py scratchpad/farm/boundary_fix_20260921/live --priority gold --max-cycles 1 --switch off`
+refused at startup, before any battle, with battery24%. Log /tmp/coc-boundary-live.log.
+Next step: charge, recheck physical environment/army, run one controlled battle,
+verify boundary ready, exact deployments, result Lightning count vs tap journal.
+Do not substitute offline checks for this remaining gate or bypass battery safety.
+
+## HOME VILLAGE: CONFIRMED BOUNDARY REGRESSION — CHECK ONLY (2026-09-21)
+
+User reported broken deployment. Confirmed in real-phone run3 battle `c232149`:
+`boundary.ready=false`, `views=0`, empty hull; four searches at 19.0, 37.3,
+41.5, 44.6s produced zero candidates and zero dragon map taps. All camera pans
+measured successfully. All five scout frames independently read 15 dragons.
+The preceding grass battle c231622 had a boundary and confirmed 15 deployments.
+
+Reproduce from repo root: `python3 /tmp/coc_boundary_audit.py` (diagnostic only).
+Grey-stone scout views: **0 boundary line points in each of 5 views**; **55
+play-area candidate points before boundary filtering -> 0 afterward**, in each
+view. Candidate counts do not establish placement legality. Control grass views
+produce 68–156 line points and 4–64 filtered candidates. The saved live journal
+also has zero usable boundary views, so this is not merely JPEG replay drift.
+
+Root cause: deploy_boundary.py:19 requires a brown line with greener neighbors,
+so grey-stone scenery fails. Boundary.allows rejects every point without a hull;
+Combat.legal makes that an unconditional veto. attack7 builds the boundary once,
+then casts all 11 Lightning even when it cannot deploy. Edge-view retries never
+rebuild the hull. Missing boundary is confirmed; oversized-hull and count/camera
+failures are ruled out as explanations for this battle's zero candidates.
+
+Fresh independent falsification reproduced the gate failure. Existing boundary
+tests still pass (2 passed using `test_optimization.py -k 'scout_geometry or missing_scout_boundary'`):
+they check fail-closed behavior but not battle commitment/recovery. The main replay
+patches Boundary.from_views to a valid synthetic hull, so it cannot establish
+real-scenery support. Prior 200-test/one-live-battle verification was insufficient.
+
+User confirmed taking over manually (latest correction: “yes i did”), explaining
+later count depletion/resource gains despite no scripted troop drops. Those gains
+must not be treated as successful autonomous deployment. Its result.png is home
+village, not a settled result screen. Runner status=ok does not mean plan executed.
+
+Proposed correction, not implemented in this check: scenery-independent boundary
+perception with these real frames as regressions; resolve missing geometry before
+committing Lightning and provide bounded reacquisition/skip behavior. Do not
+blindly bypass the boundary predicate. Physical phone EQEMVG6HSOUO9DT4 reachable,
+27% at entry; user's farm/run3 process active and left untouched. Gameplay files
+unchanged this turn. This regression supersedes any broad reliability claim above.
+
+## HOME VILLAGE: FARM OPTIMIZATION IMPLEMENTED AND EXERCISED (2026-09-21)
+
+Scope: Home Village only. No Builder Base or shared-foundation edits. User authorized
+implementation with “go for it”. Physical verification on Realme RMX5033 serial
+`EQEMVG6HSOUO9DT4`, native 2392x1080 / density 360; wireless address rediscovered.
+Full army visually checked before both runs: 15 dragons, Hog, Log, four heroes,
+11 level-10 Lightning. No commits or pushes. Existing `.serena/` left untouched.
+`scratchpad/` is ignored by this repo; implementation/evidence remain local there.
+
+Implemented:
+
+- `deploy_boundary.py`: retain conservative scout boundary in world coordinates,
+  require three usable views, 48px clearance, and a known camera. Refuse unknown
+  geometry. `spots.py` removes previously accepted positions after a later refusal.
+- `combat_deploy.py` / `troop_count.py`: one troop per tap, exact count-decrement
+  confirmation, restore selection after heroes/popups, service abilities between
+  steps. Count masks must agree; never infer a troop from brightness.
+- `loot.py`, `hud.py`, `reward_units.py`: Gold/Elixir before recognized Yeti,
+  YEETer or K.A.N.E.; identify shifted card positions after every reward popup.
+  Recognized reward cards can be deployed with the same legality/count checks.
+- `camera.py`, `strategy.py`, `zaps.py`: remember measured camera stops, avoid
+  unnecessary centering, order whole-kill AD targets to reduce travel, partial
+  target last. Preserve 3-per-AD allocation and AD-only casting.
+- `recorder.py`: reuse decision frames in this attack runner instead of competing
+  adb captures; record unreadable-count evidence losslessly as PNG.
+
+Verification commands (root unless cwd noted):
+
+- `python3 -m coc.cli status`
+- `python3 scratchpad/farm.py scratchpad/farm/optimize_20260921/final_dry --priority primary --max-cycles 1 --dry-run`
+- `python3 -u scratchpad/farm.py scratchpad/farm/optimize_20260921/live_final --priority primary --max-cycles 1 --switch off`
+- `python3 scratchpad/farm/optimize_20260921/compare.py` reproduces live comparison,
+  saved as `scratchpad/farm/optimize_20260921/comparison.json`.
+- Cwd scratchpad, before: `PYTHONPATH=.. FARM_PRIORITY=dark /Users/arnabbiswas/.pyenv/versions/3.13.2/bin/python3 replay_a10.py farm/optimize_20260921/replay_before --code farm/optimize_20260921/pre_fix`
+- Same replay after: `PYTHONPATH=.. FARM_PRIORITY=dark /Users/arnabbiswas/.pyenv/versions/3.13.2/bin/python3 replay_a10.py farm/optimize_20260921/replay_final`
+- Cwd scratchpad: `PYTHONPATH=.. /Users/arnabbiswas/.pyenv/versions/3.13.2/bin/python3 -m pytest test_battle_clock.py test_spots.py test_farm.py test_optimization.py -q` -> **185 passed**.
+- `python3 -m pytest tests/ -q` -> **15 passed**. Total **200**.
+- Regression mutation: `ATTACK7_CODE=farm/optimize_20260921/pre_fix PYTHONPATH=.. /Users/arnabbiswas/.pyenv/versions/3.13.2/bin/python3 -m pytest test_optimization.py -k abilities -q`
+  fails old code (18.9s exceeds 10s), passes new code.
+
+| Home Village measurement          | Baseline c222756 | Final c230855 |
+| --------------------------------- | ---------------: | ------------: |
+| Refused/unchanged-count drops     |               22 |             3 |
+| Hero ability delay                |       28.5–28.7s |      7.8–8.0s |
+| Recorder median spacing           |             7.7s |          5.3s |
+| Pans / unmeasured                 |           14 / 0 |        15 / 0 |
+| Dragons used (settled result)     |               15 |            15 |
+| Lightning used / journal zap taps |          11 / 11 |       11 / 11 |
+| Net gold                          |         +552,796 |      +929,640 |
+| Net elixir                        |       +1,364,403 |    +1,260,783 |
+| Result                            |    2 stars / 68% |  1 star / 65% |
+
+Final run: `scratchpad/farm/optimize_20260921/live_final/home_village/c230855/rec.json`.
+Settled `result.png` visually confirms 15 dragons, 11 Lightning, 65%/one star.
+15 exact decrement confirmations, no unreadable counts. Two unchanged placements
+preceded a popup; a third crossed that popup. Each was avoided afterward. Elixir
+was picked. All 15 pans measured; live pan count is NOT an improvement claim.
+Same-input replay is the camera comparison: **17 -> 14 pans**, **8 -> 0 refusals**,
+first dragon **14.5s earlier**, ability delays **18.7–18.9 -> 6.7–6.9s**;
+15 dragons, 11 Lightning, zero off-AD casts or after-end taps in both versions.
+
+The first validation (`live_retry/home_village/c225720`) is deliberately retained
+as a **failed validation**, despite its runner `status=ok`: nine dragons used but
+only eight confirmed, six in hand. Native digit 6 scored .7929 below .80; JPEG95
+re-encoding raised the score and hid the failure. Fresh independent falsification
+confirmed this on 7 lossless popup frames. Three-mask consensus retaining .80
+confidence fixes **0/7 -> 7/7** native reads (regression test in test_optimization.py).
+It also picked Elixir then K.A.N.E. over Dark, but the active K.A.N.E. bar signature
+was missing. Added the active signature and tested relocation on another frame.
+Actual deployment of that reward after this correction has not yet occurred live;
+the final battle only offered Elixir. Unknown reward appearances remain fail-closed.
+
+These are different bases, not a controlled win-rate experiment. Reliability and
+same-input replay improved; destruction/stars did not improve in this sample.
+Boundary clearance is conservative, not proof that every exterior tile accepts a
+unit. Further strategy evaluation needs multiple comparable battles; do not tune
+entry split or Lightning damage assumptions from these two runs alone.
+
+## HOME VILLAGE: FARM BATTLE ANALYSIS BASELINE (2026-09-21)
+
+Analysis only; no gameplay code changed. Physical phone `EQEMVG6HSOUO9DT4`, native
+2392x1080, density 360, Home Village foreground, 37% battery at entry. Army visually
+checked: 15 dragons, Hog, Log Launcher, four heroes, 11 **level-10** Lightning.
+This directory has no Git repository; branch/status commands both reported that fact.
+
+Commands (from repository root unless noted):
+
+- Dry run: `python3 scratchpad/farm.py /tmp/coc-analysis-dry-20260921 --priority primary --max-cycles 1 --dry-run`
+- Live baseline: `python3 -u scratchpad/farm.py scratchpad/farm/analysis_20260921 --priority primary --max-cycles 1 --switch off`
+- Reproduce metrics: `python3 scratchpad/farm/analysis_20260921/analyse.py scratchpad/farm/analysis_20260921/home_village/c222756`
+- Core gate: `python3 -m pytest tests/ -q` -> 15 passed.
+- Battle/farming gate, cwd scratchpad: `PYTHONPATH=.. /Users/arnabbiswas/.pyenv/versions/3.13.2/bin/python3 -m pytest test_battle_clock.py test_spots.py test_farm.py -q` -> 146 passed.
+  Explicit interpreter required there; bare python3 selected Xcode Python without pytest.
+
+Measured c222756 result: **two stars / 68%** on settled `result.png` (the earlier
+`battle_end.png` still shows the result animation at 0%; do not grade that frame).
+Gold **18,835,914 -> 19,388,710 (+552,796)**; Elixir **16,898,691 -> 18,263,094
+(+1,364,403)**; Dark +2,467; gems unchanged at 743. Search skipped two bases and
+accepted the third with 994,646 offered Elixir. Result screen shows 15 dragons and
+11 Lightning expended; zap tap journal totals 11 (3+3+3+2).
+
+Baseline: **22 refused drops; 14/14 measured pans, no relocalization; first probe
+22.93 s after script t0; hero ability delays 28.5-28.7 s; 22 recorder frames, zero
+capture failures, median frame interval 7.7 s** (configured interval 4.5 s).
+These are baseline numbers, NOT a before/after optimization claim.
+
+Findings and proposed order, awaiting implementation instructions:
+
+1. Red boundary: `spots.candidates` uses grass + ring; `spot_ok` only checks play area
+   and prior refusals. The live popup frame shows the red-area refusal banner.
+   Add a conservative exterior-of-boundary legality check with fresh geometry after
+   pans; ambiguity must stop/reacquire. Keep landing confirmation and refusal memory.
+2. Deployment accounting: first popup frame shows x5 dragons remaining, but the nearby
+   group event reports 11/15 deployed. Badge image differences across dimming are not
+   reliable count changes. Final count happens to agree at 15. Use real decrement
+   evidence across stable frames, never credit an overlay transition as a troop.
+3. Reward: live script correctly chose **281,708 Elixir**. Second popup offered
+   YEETer x2 / Yeti Undertaker x1 / Tag Tickets x200; no script pick followed. Current
+   policy is Gold -> Elixir -> Dark, with no troop recognition. Requested policy is
+   Gold/Elixir, then troops. Troop rewards can insert cards (visible in c221637 frames),
+   so re-identify card slots after rewards before deploying/using abilities.
+4. Camera: stale-camera hypothesis not supported by this run's tracker (14/14 valid).
+   Recent five records also had 86/86 valid pans, but 12-25 pans per battle. Optimize
+   route and redundant edge travel before replacing tracking; measure time to deploy.
+5. Lightning: live aim policy works and all 11 were expended, but strategy's damage
+   rationale assumes level 9 while current spells are level 10. Verify level-specific
+   kill requirements before changing allocation. Detector absence alone does not prove
+   destruction; midpoint splash also remains unverified. Retain AD-only targeting.
+6. Strategy/scheduling: ability plan says 6 s, yet deployment blocks its review until
+   28.5-28.7 s in this run (22.5-33.2 s over prior five). Check abilities between
+   deployment steps. Then compare a focused entry/funnel plan against the current
+   farthest-AD 8+7 split using repeated Gold+Elixir/minute measurements; one battle
+   cannot establish a better strategy.
+
+Evidence: `scratchpad/farm/analysis_20260921/{metrics.json,console.log,farm.jsonl,
+preflight_army.webp,result-review.webp,troop-offer-review.webp}` plus child native
+frames, review frames, popup captures, plan.json and rec.json under `home_village/c222756`.
+
 ## HOME VILLAGE: PRIMARY SEARCH SURFING VERIFIED (2026-09-20)
 
 The search flow had been reading Gold and Elixir but immediately attacking because it treated the
