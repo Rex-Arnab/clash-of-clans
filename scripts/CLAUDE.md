@@ -13,7 +13,7 @@ offline builder that regenerates the digit atlas.
 |---|---|
 | `com.arnab.coc-collect.plist` | launchd agent. 16 fixed times, 08:07–23:14, **`RunAtLoad` false**. Logs to `runs/launchd.{out,err}.log`. |
 | `run_collect.sh` | the launchd entry point: sets PATH, sources `OPENROUTER_API_KEY`, `cd`s to the project, execs `python3 -m coc.cli collect --jitter 420`. |
-| `farm.sh` | the farming launcher: sets PATH + PYTHON like `run_collect.sh`, `cd`s to the project, execs `scratchpad/farmmenu.py` (preflight, menu, then farm.py). Interactive; never scheduled. |
+| `farm.sh` | the farming launcher: sets PATH + PYTHON like `run_collect.sh` (PYTHON can be overridden from the environment — Kali: `PYTHON=.venv/bin/python`), `cd`s to the project, execs `scratchpad/farmmenu.py` (preflight, menu, then farm.py). Interactive; never scheduled. |
 | `prune_frames.py` | deletes images of old `scratchpad/farm/` runs (keeps newest 5 whole, all JSON/logs, every test-named folder or `farm/<prefix>*` glob, every `view_mid.jpg`). Dry run by default; `farm.sh` runs it with `--apply` on every start. Never touches `scratchpad/battles/` or `scratchpad/bb/battles/`. |
 | `build_digit_atlas.py` | rebuilds `assets/digits/atlas.npz` from `labels.json` + `samples/`. Idempotent and cheap. |
 

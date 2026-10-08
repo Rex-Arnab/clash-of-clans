@@ -1,5 +1,25 @@
 # Clash of Clans automation — TODO
 
+## SHARED: SECOND HOST — KALI LINUX (2026-10-08) — DRY RUN OK (WARM + COLD START), LIVE COLLECT NOT YET RUN
+
+- Host `rex@192.168.1.4` (Kali, Python 3.14.7), repo at `~/Projects/clash-of-clans`, `.venv` pinned to the Mac's
+  runtime: cv2 4.13.0, numpy 2.3.5, requests 2.32.5, pytest 8.4.2, rich 14.0.0, anthropic 0.84.0,
+  openai 2.43.0, google-genai 1.9.0. adb 34.0.5-debian. `avahi-daemon` enabled. `scratchpad/` + `tests/` rsynced (not in git).
+- `coc/device.py`: `avahi-browse -rpt` is used only when `dns-sd` is absent. Filter on the address, not on
+  avahi's `proto` field: the phone's only record was `=;wlan0;IPv6;...;192.168.1.3;40091`.
+  Measured on Kali: `adb disconnect` -> `Device.connect()` via avahi = 1.3 s (Mac dns-sd path: 12.2 s).
+- Gates, Mac == Kali: `tests/` 16 passed; `bb/test_bb.py` 103 passed 21 skipped; `test_battle_clock.py test_spots.py`
+  159 passed 1 failed (`test_live_scouting_uses_next_button_not_the_deployment_overlay`, fails without this change too).
+- Kali live phone: `coc.cli status` exit 0 (46% charging, screen on). `collect --dry-run` ->
+  `runs/20261008T164159Z_home_collect/run.json`: status ok, 6 bubbles seen, 6 would-tap (elixir 3, dark 2, gold 1), refused [], 11.3 s.
+- **Fixed, shared:** `capture.wait_for_game` died on a cold game start with `DeviceError: shell failed: dumpsys window |
+  grep -m1 'mAppBounds=...'` -- grep's no-match rc 1 went through `device.shell()`'s rc check. Probe (force-stop, launch, poll):
+  bounds rc=1 at 0.3 s, rc=0 at 1.3 s. Red-team agent: SURVIVED. Fix: new `Device.shell_grep()` (rc 1 + empty = no match,
+  any other non-zero still raises -- checked with `grep x /no/such/file`), used by both polls.
+  Cold-start `collect --dry-run` on Kali: before exit 1 in 2 s; after exit 0 in 33 s, 5 bubbles, refused []
+  (`runs/20261008T164540Z_home_collect/`). Mac gates after: 16 / 103+21 skipped / 159+1 old failure (unchanged).
+- Run on Kali with `PYTHON=.venv/bin/python scripts/farm.sh`. Do not run Mac and Kali against the phone at once: the flock is per host.
+
 ## SHARED: FARM SCREENSHOT RETENTION (2026-10-06) — DONE, ONE GATE LOST
 
 - `scratchpad/farm/` was 2.5 GB. New `scripts/prune_frames.py`; `scripts/farm.sh` runs it with `--apply` at start.

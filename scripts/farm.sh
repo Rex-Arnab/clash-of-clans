@@ -10,7 +10,7 @@
 # fail at device discovery. exec, so Ctrl-C and the exit code belong to farm.py itself.
 set -uo pipefail
 export PATH="/opt/homebrew/share/android-commandlinetools/platform-tools:/opt/homebrew/bin:$PATH"
-PYTHON="/Users/arnabbiswas/.pyenv/versions/3.13.2/bin/python3"
+PYTHON="${PYTHON:-/Users/arnabbiswas/.pyenv/versions/3.13.2/bin/python3}"   # Kali: PYTHON=.venv/bin/python
 cd "$(dirname "$0")/.." || exit 1
 # scratchpad/farm/ grew to 2.5 GB of screenshots; keep the newest runs' images only.
 "$PYTHON" scripts/prune_frames.py --apply || echo "prune_frames failed; farming anyway" >&2

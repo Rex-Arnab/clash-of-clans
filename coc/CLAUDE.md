@@ -12,7 +12,7 @@ run logging, and the CLI the scheduler invokes.
 | Module | Owns |
 |---|---|
 | `config.py` | every device/account/geometry constant. Plain module of constants, deliberately not a file loader. |
-| `device.py` | adb: discovery, reconnection, shell, power state, raw input. |
+| `device.py` | adb: discovery (macOS `dns-sd`; `avahi-browse` only when dns-sd is absent, i.e. Linux), reconnection, shell, power state, raw input. |
 | `capture.py` | `Frame` (BGR ndarray, exactly `CAPTURE_H x CAPTURE_W`), geometry assertions, waiting for the game to be genuinely in front. |
 | `safety.py` | the no-tap zones and `Tapper`. The only sanctioned way to tap. |
 | `report.py` | `RunLog` — JSONL line per run, screenshots, retention pruning. |

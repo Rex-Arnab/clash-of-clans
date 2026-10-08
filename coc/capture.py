@@ -97,14 +97,16 @@ def wait_for_game(device: Device, timeout: float = 90.0) -> None:
     Waits on the landscape window bounds rather than on the process existing:
     the process appears within a second, but the surface is not laid out until
     well into the loading screen, and a frame grabbed before then is portrait.
+    Both polls go through `shell_grep`: a grep miss means "not yet", and through
+    plain `shell()` the first miss on a cold start raised instead of waiting.
     """
     if device.app_pid() is None:
         device.launch_app()
     deadline = time.time() + timeout
     while time.time() < deadline:
-        out = device.shell("dumpsys activity activities | grep topResumedActivity")
+        out = device.shell_grep("dumpsys activity activities | grep topResumedActivity")
         if config.PACKAGE in out:
-            bounds = device.shell(
+            bounds = device.shell_grep(
                 "dumpsys window | grep -m1 'mAppBounds=Rect(0, 0 - 2392, 1080)'"
             )
             if bounds.strip():

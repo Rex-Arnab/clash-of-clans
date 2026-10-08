@@ -4,6 +4,8 @@ The phone is attached over Android 11+ Wireless Debugging, which assigns an
 ephemeral port that changes on reboot. `adb mdns services` reports nothing on
 this host, but macOS `dns-sd` browses the same records fine, so rediscovery
 goes through dns-sd and re-derives the address from the stable serial.
+A Linux host has no dns-sd; there, and only there, `avahi-browse` reads the
+same records.
 """
 
 from __future__ import annotations
@@ -82,8 +84,29 @@ def _serial_of(addr: str) -> str | None:
     return cp.stdout.strip() or None
 
 
+def _avahi_endpoints() -> list[str]:
+    """The Linux equivalent of the dns-sd browse + resolve below.
+
+    `-p` lines are `=;iface;proto;name;type;domain;host;address;port;txt` once
+    resolved; `-t` exits after the cache dump, so no settle/terminate dance.
+    IPv4 addresses only, judged by the address itself: `proto` is the transport the
+    record arrived on, and on Kali the phone's only record was
+    `=;wlan0;IPv6;...;192.168.1.3;40091` -- filtering on proto found nothing.
+    """
+    out = _run(["avahi-browse", "-rpt", config.MDNS_SERVICE], timeout=15).stdout
+    endpoints: list[str] = []
+    for line in out.splitlines():
+        f = line.split(";")
+        if len(f) >= 9 and f[0] == "=" and ":" not in f[7] and config.DEVICE_SERIAL in f[3]:
+            if (ep := f"{f[7]}:{f[8]}") not in endpoints:
+                endpoints.append(ep)
+    return endpoints
+
+
 def _mdns_endpoints() -> list[str]:
     """Browse mDNS for our device and resolve it to host:port candidates."""
+    if shutil.which("dns-sd") is None and shutil.which("avahi-browse") is not None:
+        return _avahi_endpoints()
     browse = _dns_sd(["-B", config.MDNS_SERVICE, "local"], settle=4.0)
     instances = {
         m.group(1).strip()
@@ -131,6 +154,19 @@ class Device:
     # -- raw commands ------------------------------------------------------
     def shell(self, cmd: str, timeout: float = 30.0) -> str:
         cp = _run(["adb", "-s", self.addr, "shell", cmd], timeout=timeout)
+        if cp.returncode != 0:
+            raise DeviceError(f"shell failed: {cmd}\n{cp.stderr.strip()}")
+        return cp.stdout
+
+    def shell_grep(self, cmd: str, timeout: float = 30.0) -> str:
+        """`shell()` for a command ending in grep: rc 1 with no output is "no match", not a failure.
+
+        Measured on a cold game start: the bounds grep returned rc=1 at 0.3 s and rc=0 at
+        1.3 s; through shell() that first miss raised. Any other non-zero rc still raises.
+        """
+        cp = _run(["adb", "-s", self.addr, "shell", cmd], timeout=timeout)
+        if cp.returncode == 1 and not cp.stdout.strip():
+            return ""
         if cp.returncode != 0:
             raise DeviceError(f"shell failed: {cmd}\n{cp.stderr.strip()}")
         return cp.stdout
