@@ -32,6 +32,9 @@ python3 -m pytest tests/ -q                # digit reader + defence detector reg
 python3 scripts/build_digit_atlas.py       # rebuild the atlas after adding samples
 ```
 
+Unattended farming, either base: `scripts/farm.sh` (menu: mode, priority, plan, battles,
+start / dry run) or `scripts/farm.sh gold --max-cycles 3` (no menu) -- see `scratchpad/farmmenu.py`.
+
 Live attacks are not a CLI command yet; they run from `scratchpad/`, one system per base:
 
 ```bash

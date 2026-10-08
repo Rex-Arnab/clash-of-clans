@@ -8,6 +8,12 @@
   learn_20260924_233649, learn_20260925_000343, _010218, _010440, _012506 are gone (no git, no Time Machine).
   `test_the_log_reads_selected_before_its_drop_and_never_from_0_9_s_after` (Home Village) now fails. Script fixed to protect glob prefixes.
 - Gate before/after (test_bar, test_cards, test_freeze, test_optimization, test_farm): 14 failed before (pre-existing), 15 after; only the test above changed. `tests/`: 16 passed.
+- 2026-10-08: `python3 scripts/prune_frames.py --keep 0 --apply` deleted 980 images, 260 MB, all from
+  primary_20261008_075659 (logs/JSON and 6 `view_mid.jpg` kept). `du -sh scratchpad/farm`: 1.0G -> 761M.
+  Same gate after: 15 failed, 92 passed (same count as 2026-10-06; not re-run just before this prune). The remaining 761M is test-referenced runs.
+- 2026-10-08: `.git` 1.6G -> 51M via `git reflog expire --expire-unreachable=now --all && git gc --prune=now`.
+  The 1.6G was 4605 unreachable blobs from an undone `git add` of the screenshot folders; 1413 (555 MB,
+  1099 JPEGs) existed nowhere else and were likely the lost learn_* frames above. Owner chose to drop them.
 
 ## HOME VILLAGE: BLURRED OPENING BAR + LOG LAUNCHER NOT LANDING (2026-10-05/06) — FIXED, FARM + RANKED LIVE OK
 
@@ -45,12 +51,12 @@ no shared-foundation edit.
   (60,300), the result screen has no Log Launcher, and the card stays full on the recorder frames
   after the heroes landed. Not from this change (replay tap journals identical; older misses below).
 - **Log Launcher not deployed, 4 of 228 stored battles** (siege-card template on `result.png`: 224 at
-  >= 0.898, 4 at <= 0.338; 4 more low scores were not result screens): c233639, c000227 (09-29),
-  c074116 (10-01), c234339 (10-05). All 4 dropped it at x 60, y 300-370 -- the same screen point as
-  the last group-1 dragon, which landed. Same strip, deployed: c070418, c055655 (60,300), c080513
-  (60,370); 0 misses elsewhere. Gap from the last dragon tap 1.6-2.8 s, same as the hits. The
-  heroes tapped at the same point 0.2 s later deployed. Root cause NOT found. `deploy_support`
-  logs `deploy log` without checking that the siege left the bar.
+  > = 0.898, 4 at <= 0.338; 4 more low scores were not result screens): c233639, c000227 (09-29),
+  > c074116 (10-01), c234339 (10-05). All 4 dropped it at x 60, y 300-370 -- the same screen point as
+  > the last group-1 dragon, which landed. Same strip, deployed: c070418, c055655 (60,300), c080513
+  > (60,370); 0 misses elsewhere. Gap from the last dragon tap 1.6-2.8 s, same as the hits. The
+  > heroes tapped at the same point 0.2 s later deployed. Root cause NOT found. `deploy_support`
+  > logs `deploy log` without checking that the siege left the bar.
 - **Siege fix (owner: "A", 2026-10-06)** -- `combat_deploy.confirm_siege` / `siege_spot`, attack7
   (support loop, still 600 LOC), `replay_a10.py --siege-refuse N`. The card cannot judge a drop:
   review frames <= 3 s after a drop read the siege card grey 0/11 (it stays coloured while the
@@ -88,9 +94,9 @@ and benchmark); no Builder Base or shared-foundation edits. Existing retry/Freez
   .382px / p95 .937px. Sideways motion, changed zoom and wrong/stale-frame hypotheses disproved.
 - `camera.scene_shift` keeps every successful original match identical. After a FAILED banded
   downward-only pan, try 100x60 patches at two separated rows: >=4 matches, >=3 columns spanning
-  >=300px, **1px agreement**. Independent masked SIFT verifies scale within .001, rotation within
-  .05 degrees, >=12 inliers spanning >=300px; unreadable fit stays blocked. It does NOT rescale
-  coordinates. Relocalization and the unknown-camera deployment interlock remain unchanged.
+  > =300px, **1px agreement**. Independent masked SIFT verifies scale within .001, rotation within
+  > .05 degrees, >=12 inliers spanning >=300px; unreadable fit stays blocked. It does NOT rescale
+  > coordinates. Relocalization and the unknown-camera deployment interlock remain unchanged.
 - Adversarial tests found and killed an intermediate weakness: 15px patch consensus accepted
   1-4% zooms; even 1px could admit .25% zoom. The independent scale fit rejects the eight tested
   +/- .25%, 1%, 2%, 4% cases. This is measured coverage, not proof against every conceivable frame.
@@ -245,6 +251,7 @@ plan, 50-battle allowance, 90% resource stop and battery interlocks. No Builder 
 
 Owner: Inferno-only Freezes sit unused when no Inferno fires, and battles reached 100% without them -> "make a priority list". Home Village only
 (`scratchpad/zaps.py`: `_pool`, `xbow_standing`, `freeze_tick`; `test_freeze.py`; `attack7.py` untouched, 600 LOC; `zaps.py` now 425 LOC, over the 400 soft cap).
+
 - **Before (measured, `rec["freezes"]` over the 12 beam-gated battles c213531..c224337):** 5 of 12 cast ONE Freeze of two; the other went unused.
   `rec["xbows"]` held 3-5 X-Bows every one of those battles, so a fallback target existed each time.
 - **Priority:** firing Inferno -> X-Bow (standing, nearest group 1) once the Inferno list gives out (none scouted / all down / 12 silent looks).
@@ -327,7 +334,7 @@ Army panel on the phone: Dragon x16 (L10), Lightning x9 (L10), Freeze x2 (L7), L
   4. Chain never happened: `st["last"]` is the START of the tick, but the pan before the tap takes seconds; the next tick (t 125.9, 5.4 s after
      the tap) still saw the freeze, the detector found no Inferno under the ice, 2 misses -> dead -> "every Inferno is down". Skip the standing
      check on a chain cast, and set `last` at the tap.
-  One battle proves the mechanics (card, tap, count, result-screen line agree), nothing about damage or timing.
+     One battle proves the mechanics (card, tap, count, result-screen line agree), nothing about damage or timing.
 - **Fixes applied after c200234** (`zaps.py`, `attack7.py` 600 LOC still; `test_freeze.py` 15 tests, the new ones fail on the previous code):
   chain timer at the tap; chain cast skips the standing check; `freeze_opening` right after group 1's support (`FREEZE_AFTER_S` 8 s, a guess from
   dragon speed ~2.7 tiles/s); `freezeN_aim.jpg`/`freezeN_after.jpg` saved per cast.
@@ -360,6 +367,7 @@ Army panel on the phone: Dragon x16 (L10), Lightning x9 (L10), Freeze x2 (L7), L
 - Further probe on the physical phone: the same 10,333,456-byte frame with `adb pull -Z` timed out **2/6** times at 15 s, leaving 3.08 MB and 2.03 MB partial local files. `adb pull -z any` completed 6/6 but ranged 1.42-10.63 s. `adb exec-out screencap` completed 8/8 at 3.50-4.36 s while idle; lossless PNG `adb exec-out screencap -p` completed 6/6 but took 8.01-12.06 s for about 5.02 MB. Compression is already enabled on the normal pull path; disabling it was only a diagnostic test.
 - A proposed direct `exec-out` retry passed 17/17 capture tests and a forced-pull-failure physical-phone probe, but **failed live** in `scratchpad/farm/capture_fallback_20260926_live2` c224203: the compressed pull timed out after 8.02 s and then direct `exec-out screencap` timed out after 8.02 s during Home Village scouting. The live battle ended rc=1; phone left untouched for review. The proposed code/test edits were reverted.
 - Root cause confirmed at the observable layer: intermittent large-frame transfer delay while ADB stays connected. Eight small `adb shell echo ok` calls after the failed battle took 0.06-0.33 s. The passive recorder launches no competing capture. Evidence does not distinguish Wi-Fi, phone `adbd`, and host ADB transport. Increasing the eight-second budget is unproven: one pull finished at 10.63 s, while two uncompressed pulls remained partial after 15 s. No further battle was started.
+
 ## HOME VILLAGE: FRESH CAPTURE RETRY AFTER ADB DEADLINE (2026-09-26) — LIVE OK
 
 - `scratchpad/farm/primary_20260926_195832` c195857 died during the second scout pan:
@@ -377,16 +385,16 @@ Army panel on the phone: Dragon x16 (L10), Lightning x9 (L10), Freeze x2 (L7), L
   including one recovered `pull` timeout at **8.01 s**. Before the edit, the same
   exhausted first attempt had no retry; c195857 completed **0/1** battle.
 - Verification: `python3 -u scratchpad/farm.py scratchpad/farm/capture_fix_20260926_dry2
-  --priority primary --plan th --max-cycles 1 --switch off --dry-run` reached Home
+--priority primary --plan th --max-cycles 1 --switch off --dry-run` reached Home
   Village. The first dry run was blocked by c195857's 0% Defeat result screen; after
   identifying it on a compressed frame, a safe Back returned to the village.
   `python3 -u scratchpad/farm.py scratchpad/farm/capture_fix_20260926_live
-  --priority primary --plan th --max-cycles 1 --switch off` completed **1/1** battle:
+--priority primary --plan th --max-cycles 1 --switch off` completed **1/1** battle:
   `home_village/c200858/rec.json` reports status ok, 90 captures / 0 failures, p50
   1.765 s, p95 2.095 s, 15 confirmed dragons and 11 Lightning taps. The result
   frame shows Victory, 3 stars, 100% and Troops expended Dragon x15 / Lightning x11.
   `PYTHONPATH=scratchpad:. python3 -m pytest scratchpad/test_home_latency.py
-  scratchpad/test_farm.py tests/ -q` -> 44 passed.
+scratchpad/test_farm.py tests/ -q` -> 44 passed.
 
 ## HOME VILLAGE: USE ALL LEFTOVER TROOPS — ANY BAR (2026-09-25) — LIVE OK (K.A.N.E. x40, Hog x3); LIGHTNING COUNT BUG FOUND
 
